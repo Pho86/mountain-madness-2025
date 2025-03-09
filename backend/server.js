@@ -9,6 +9,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" })); // Increase limit for audio data
 
+app.get("/", (req, res) => res.send("Express on Vercel"));
+
 app.post("/transcribe", async (req, res) => {
     try {
         const { audioBase64 } = req.body;
@@ -44,5 +46,5 @@ app.post("/transcribe", async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// Vercel expects a handler function to export the express app
+export default app;
