@@ -327,4 +327,46 @@ button:hover {
     border-color: #FFD700;
     transform: translateX(-50%) scale(1.1);
     box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+#tangleMetrics {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+#knotMeasurement {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+#knotMeasurement p {
+    margin: 5px 0;
+}
+
+#knotMeasurement span {
+    font-weight: bold;
+    color: #FFD700;
+}
+
+#measureKnot {
+    background: #8B4513;
+    color: white;
+    padding: 5px 10px;
+    margin: 5px 0;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 2px solid #d2b48c;
+}
+
+#measureKnot:hover {
+    background: #A0522D;
+}
+
+#measureKnot:disabled {
+    background: #666;
+    cursor: not-allowed;
 } 

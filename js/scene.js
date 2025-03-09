@@ -1,9 +1,23 @@
 // Configuration parameters
 const CONFIG = {
     floorDistance: -10,  // Distance of floor from origin
-    wallDistance: 25,    // Distance of walls from center
-    damping: 0.3,       // Physics damping factor
-    angularDamping: 0.5  // Angular damping factor
+    wallDistance: 35,    // Distance of walls from center (increased from 25)
+    damping: 0.4,       // Physics damping factor
+    angularDamping: 0.65  // Angular damping factor
+};
+
+// Global variables
+let enableTanglingForces = true;
+let currentTangleComplexity = 0;
+let currentCrossings = 0;
+
+// Tangling force configuration
+const TANGLE_CONFIG = {
+    attractionRadius: 1.5,     // Radius for attraction between non-adjacent links
+    repulsionRadius: 0.8,      // Radius for repulsion (prevent overlap)
+    attractionForce: 0.8,      // Strength of attraction force
+    repulsionForce: 3.0,       // Strength of repulsion force
+    maxCrossings: 50           // Maximum number of crossings for complexity calculation
 };
 
 // Cell shading setup
@@ -27,7 +41,7 @@ const cellShader = {
             else if (intensity > 0.5) intensity = 0.6;
             else if (intensity > 0.25) intensity = 0.4;
             else intensity = 0.2;
-            gl_FragColor = vec4(vec3(0.3, 0.5, 0.8) * intensity, 1.0);  // Blue color
+            gl_FragColor = vec4(vec3(0.3, 0.5, 0.2) * intensity, 1.0);  // Blue color
         }
     `
 };
@@ -40,7 +54,7 @@ const cellShadingMaterial = new THREE.ShaderMaterial({
 
 // Initialize Three.js Scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x282c34);
+scene.background = new THREE.Color(0xFFFFFF);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -83,47 +97,56 @@ world.defaultContactMaterial.frictionEquationRegularizationTime = 3;
 const wallShape = new CANNON.Box(new CANNON.Vec3(0.5, CONFIG.wallDistance, CONFIG.wallDistance));
 const wallMaterial = new CANNON.Material();
 
+// Tilt angle for all walls (in radians)
+const tiltAngle = Math.PI / 6; // 30 degrees
+
 // Left wall
 const leftWallBody = new CANNON.Body({ mass: 0, material: wallMaterial });
 leftWallBody.addShape(wallShape);
 leftWallBody.position.set(-CONFIG.wallDistance, 0, 0);
+leftWallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), tiltAngle); // Rotate around z-axis
 world.addBody(leftWallBody);
 
 // Right wall
 const rightWallBody = new CANNON.Body({ mass: 0, material: wallMaterial });
 rightWallBody.addShape(wallShape);
 rightWallBody.position.set(CONFIG.wallDistance, 0, 0);
+rightWallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), -tiltAngle); // Rotate around z-axis in opposite direction
 world.addBody(rightWallBody);
 
 // Front wall
-const frontWallShape = new CANNON.Box(new CANNON.Vec3(CONFIG.wallDistance, CONFIG.wallDistance, 0.5));
+const frontWallShape = new CANNON.Box(new CANNON.Vec3(CONFIG.wallDistance, CONFIG.wallDistance, 0.0));
 const frontWallBody = new CANNON.Body({ mass: 0, material: wallMaterial });
 frontWallBody.addShape(frontWallShape);
 frontWallBody.position.set(0, 0, CONFIG.wallDistance);
+frontWallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -tiltAngle*4); // Rotate around x-axis
 world.addBody(frontWallBody);
 
 // Back wall
 const backWallBody = new CANNON.Body({ mass: 0, material: wallMaterial });
 backWallBody.addShape(frontWallShape);
 backWallBody.position.set(0, 0, -CONFIG.wallDistance);
+backWallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -tiltAngle); // Rotate around x-axis in opposite direction
 world.addBody(backWallBody);
 
 // Create visual walls (semi-transparent)
 const wallGeometry = new THREE.BoxGeometry(1, CONFIG.wallDistance * 2, CONFIG.wallDistance * 2);
 const wallMaterialThree = new THREE.MeshStandardMaterial({ 
-    color: 0x113311,
-    transparent: true,
-    opacity: 0.2
+    color: 0x08240e,
+    transparent: false,
+    opacity: 1.
 });
 
 // Left wall visual
 const leftWall = new THREE.Mesh(wallGeometry, wallMaterialThree);
 leftWall.position.copy(leftWallBody.position);
+leftWall.quaternion.copy(leftWallBody.quaternion); // Copy rotation from physics body
 scene.add(leftWall);
 
 // Right wall visual
 const rightWall = new THREE.Mesh(wallGeometry, wallMaterialThree);
 rightWall.position.copy(rightWallBody.position);
+rightWall.quaternion.copy(rightWallBody.quaternion); // Copy rotation from physics body
 scene.add(rightWall);
 
 // Front and back wall geometry
@@ -132,19 +155,21 @@ const frontWallGeometry = new THREE.BoxGeometry(CONFIG.wallDistance * 2, CONFIG.
 // Front wall visual
 const frontWall = new THREE.Mesh(frontWallGeometry, wallMaterialThree);
 frontWall.position.copy(frontWallBody.position);
+frontWall.quaternion.copy(frontWallBody.quaternion); // Copy rotation from physics body
 scene.add(frontWall);
 
 // Back wall visual
 const backWall = new THREE.Mesh(frontWallGeometry, wallMaterialThree);
 backWall.position.copy(backWallBody.position);
+backWall.quaternion.copy(backWallBody.quaternion); // Copy rotation from physics body
 scene.add(backWall);
 
 // Ground
-const groundGeometry = new THREE.PlaneGeometry(50, 50);
+const groundGeometry = new THREE.PlaneGeometry(80, 80); // Increased from 50x50
 const groundMaterial = new THREE.MeshStandardMaterial({ 
     color: 0x224422,
     roughness: 0.8,
-    metalness: 0.2
+    metalness: 0.5
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2;
@@ -175,47 +200,34 @@ function animate() {
     // Update frame counter
     frameCount++;
     
-    // Process knot measurement if active
-    if (KNOT_CONFIG && KNOT_CONFIG.isActive) {
-        try {
-            // Call the measurement step function for the first chain
-            measureKnotStep(0, KNOT_CONFIG.originalGravity);
-        } catch (error) {
-            console.error("Error in knot measurement:", error);
-            // End measurement on error
-            if (typeof endKnotMeasurement === 'function') {
-                endKnotMeasurement(false, KNOT_CONFIG.originalGravity);
-            }
-        }
-    }
-    
     // Update physics
     world.step(timeStep);
     
-    // Update chain positions based on physics
-    for (let i = 0; i < chains.length; i++) {
-        for (let j = 0; j < chains[i].children.length; j++) {
-            const link = chains[i].children[j];
-            
-            // Skip links without userData (like end caps)
-            if (!link.userData || link.userData.linkIndex === undefined) {
-                continue;
-            }
-            
-            const body = chainBodies[i][link.userData.linkIndex];
-            
-            // Skip if body doesn't exist
-            if (!body) {
-                continue;
-            }
-            
-            link.position.copy(body.position);
-            link.quaternion.copy(body.quaternion);
-        }
+    // Apply tangles forces if enabled
+    if (enableTanglingForces) {
+        applyTanglingForces();
     }
     
-    // Apply tangling forces
-    applyTanglingForces();
+    // Update mesh positions based on physics
+    if (typeof updateMeshPositions === 'function') {
+        updateMeshPositions();
+    } else {
+        // Fallback update if updateMeshPositions not available
+        for (let i = 0; i < chains.length; i++) {
+            const chain = chains[i];
+            const bodies = chainBodies[i];
+            
+            for (let j = 0; j < Math.min(chain.children.length, bodies.length); j++) {
+                const mesh = chain.children[j];
+                const body = bodies[j];
+                
+                if (mesh && body) {
+                    mesh.position.copy(body.position);
+                    mesh.quaternion.copy(body.quaternion);
+                }
+            }
+        }
+    }
     
     // Render scene
     renderer.render(scene, camera);
@@ -267,18 +279,7 @@ window.addEventListener('wheel', (event) => {
     camera.lookAt(scene.position);
 });
 
-// Tangling configuration
-const TANGLE_CONFIG = {
-    attractionRadius: 2.0,      // Radius within which links attract each other
-    attractionForce: 0.5,       // Strength of the attraction force
-    minDistance: 0.5,           // Minimum distance between links
-    maxCrossings: 50,           // Maximum number of crossings for normalization
-    updateInterval: 10          // Frames between tangle metric updates
-};
-
 let frameCount = 0;
-let currentTangleComplexity = 0;
-let currentCrossings = 0;
 
 // Function to calculate distance between line segments
 function segmentDistance(p1, p2, p3, p4) {

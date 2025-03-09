@@ -45,6 +45,11 @@ const difficulties = {
 };
 let currentDifficulty = difficulties.medium; // Default to medium
 
+// Knot measurement variables
+let calibratedLength = null;
+let isMeasuring = false;
+let measurementTimeout = null;
+
 function updateTimerDisplay() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
@@ -494,4 +499,79 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startButton) {
         startButton.style.display = 'none';
     }
-}); 
+
+    // Add event listener for measure button
+    const measureButton = document.getElementById('measureKnot');
+    if (measureButton) {
+        measureButton.addEventListener('click', measureKnot);
+    }
+    
+    // Show the measure knot button
+    if (measureButton) {
+        measureButton.style.display = 'block';
+    }
+});
+
+// Function to measure the chain length
+function measureChainLength() {
+    const chainIndex = 0; // Use first chain
+    if (!chainBodies[chainIndex]) return 0;
+
+    const bodies = chainBodies[chainIndex];
+    let totalLength = 0;
+
+    // Measure distance between consecutive links
+    for (let i = 1; i < bodies.length - 1; i++) {
+        const pos1 = bodies[i].position;
+        const pos2 = bodies[i + 1].position;
+        totalLength += Math.sqrt(
+            Math.pow(pos2.x - pos1.x, 2) +
+            Math.pow(pos2.y - pos1.y, 2) +
+            Math.pow(pos2.z - pos1.z, 2)
+        );
+    }
+
+    return totalLength;
+}
+
+// Function to perform knot measurement
+function measureKnot() {
+    if (isMeasuring) return;
+    isMeasuring = true;
+
+    // Store original gravity
+    const originalGravity = world.gravity.clone();
+    
+    // Apply upward force to stretch the chain
+    world.gravity.set(0, 8, 0); // Strong upward force
+    
+    // Wait for chain to stabilize
+    measurementTimeout = setTimeout(() => {
+        const currentLength = measureChainLength();
+        
+        // If not calibrated yet, use this as calibration
+        if (calibratedLength === null) {
+            calibratedLength = currentLength;
+            document.getElementById('calibratedLength').textContent = calibratedLength.toFixed(2);
+            document.getElementById('currentLength').textContent = '-';
+            document.getElementById('knottedness').textContent = 'Calibrated';
+        } else {
+            // Calculate knottedness ratio
+            const ratio = currentLength / calibratedLength;
+            document.getElementById('currentLength').textContent = currentLength.toFixed(2);
+            
+            // Determine knottedness level
+            let knottedness;
+            if (ratio > 0.95) knottedness = 'Not knotted';
+            else if (ratio > 0.8) knottedness = 'Slightly knotted';
+            else if (ratio > 0.6) knottedness = 'Moderately knotted';
+            else knottedness = 'Heavily knotted';
+            
+            document.getElementById('knottedness').textContent = knottedness;
+        }
+        
+        // Restore original gravity
+        world.gravity.copy(originalGravity);
+        isMeasuring = false;
+    }, 17000); // Wait 2 seconds for chain to stabilize
+} 
