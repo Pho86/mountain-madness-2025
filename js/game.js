@@ -518,21 +518,21 @@ function measureChainLength() {
     if (!chainBodies[chainIndex]) return 0;
 
     const bodies = chainBodies[chainIndex];
-    let totalLength = 0;
 
-    // Measure distance between consecutive links
-    for (let i = 1; i < bodies.length - 1; i++) {
-        const pos1 = bodies[i].position;
-        const pos2 = bodies[i + 1].position;
-        totalLength += Math.sqrt(
-            Math.pow(pos2.x - pos1.x, 2) +
-            Math.pow(pos2.y - pos1.y, 2) +
-            Math.pow(pos2.z - pos1.z, 2)
-        );
-    }
+    // Get the anchor position (first body) and end position (last body)
+    const anchorPosition = bodies[0].position;
+    const endPosition = bodies[149].position;
 
-    return totalLength;
-}
+    // Calculate direct distance between anchor and end
+    const distance = Math.sqrt(
+
+        Math.pow(endPosition.y - anchorPosition.y, 2)
+
+    );
+
+    return distance;
+} 
+
 
 // Function to perform knot measurement
 function measureKnot() {
