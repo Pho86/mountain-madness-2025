@@ -9,7 +9,7 @@ An interactive 3D physics simulation that allows users to manipulate ropes using
 - Voice commands for hands-free control
 - Game mode with timer and scoring
 - Multiple difficulty levels
-- Tangle complexity metrics
+- Knottedness metric
 
 ## Project Structure
 
@@ -37,7 +37,7 @@ The project has been organized into a modular structure for better maintainabili
 The application supports the following voice commands:
 - **"restart"**: Restarts the game
 - **"menu"**: Toggles the controls menu
-- **"measure"** or **"knot"**: Measures the complexity of knots in the rope
+- **"measure"** or **"knot"**: Measures the knottedness of the rope
 
 ## Keyboard Shortcuts
 
@@ -46,9 +46,7 @@ The application supports the following voice commands:
 
 ## Knot Measurement System
 
-The application includes an advanced knot measurement system that:
-- Analyzes the complexity of knots tied in the rope
-- Provides a rating from "Not knotted" to "Extreme knot"
+The application includes an advanced knot by how much it has shrunk when stretched out
 - Applies difficulty multipliers to scores
 - Visualizes the measurement process with interactive indicators
 
