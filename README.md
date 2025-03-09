@@ -1,6 +1,6 @@
 # 3D Knot Madness
 
-An interactive 3D physics simulation that allows users to manipulate ropes using hand tracking and voice commands. The application uses Three.js for 3D rendering, Cannon.js for physics, and MediaPipe for hand tracking with hugging face and whisper to integrate voice commands.
+An interactive 3D physics simulation that allows users to manipulate ropes using hand tracking and voice commands. The application uses Three.js for 3D rendering, Cannon.js for physics, and MediaPipe for hand tracking and OpenAI Whisper to integrate voice commands.
 
 ## Features
 
