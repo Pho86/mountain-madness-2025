@@ -1,60 +1,5 @@
 /* --- MEDIAPIPE DUAL HAND TRACKING INTEGRATION --- */
 
-// Global reset function to ensure all drag states are properly cleared
-function resetAllDragStates() {
-    console.log("Resetting all drag states");
-    
-    // Reset global dragging state
-    window.isDraggingChain = false;
-    window.activeHand = null;
-    
-    // If there's an active constraint, remove it
-    if (window.dragConstraint) {
-        world.removeConstraint(window.dragConstraint);
-        window.dragConstraint = null;
-    }
-    
-    // Reset materials if needed
-    if (window.draggedLink && window.originalMaterial) {
-        window.draggedLink.material = window.originalMaterial;
-    }
-    
-    window.draggedLink = null;
-    window.originalMaterial = null;
-    window.draggedBody = null;
-    
-    // Reset hand states
-    if (hands) {
-        if (hands.left) {
-            hands.left.isDragging = false;
-            hands.left.wasPinching = false;
-            hands.left.draggedLink = null;
-            hands.left.draggedBody = null;
-            hands.left.dragConstraint = null;
-        }
-        
-        if (hands.right) {
-            hands.right.isDragging = false;
-            hands.right.wasPinching = false;
-            hands.right.draggedLink = null;
-            hands.right.draggedBody = null;
-            hands.right.dragConstraint = null;
-        }
-    }
-    
-    // Clear any active timeouts
-    if (dragTimeouts) {
-        if (dragTimeouts.left) {
-            clearTimeout(dragTimeouts.left);
-            dragTimeouts.left = null;
-        }
-        if (dragTimeouts.right) {
-            clearTimeout(dragTimeouts.right);
-            dragTimeouts.right = null;
-        }
-    }
-}
-
 // Setup video and canvas elements
 const video = document.getElementById('videoElement');
 const handCanvas = document.getElementById('handCanvas');
@@ -78,8 +23,7 @@ const hands = {
         originalMaterial: null,
         dragConstraint: null,
         landmarks: null,
-        activeFingerIndex: -1,
-        wasPinching: undefined
+        activeFingerIndex: -1
     },
     right: {
         active: false,
@@ -91,23 +35,9 @@ const hands = {
         originalMaterial: null,
         dragConstraint: null,
         landmarks: null,
-        activeFingerIndex: -1,
-        wasPinching: undefined
+        activeFingerIndex: -1
     }
 };
-
-// Define pinch thresholds with hysteresis (different thresholds for start and end)
-const PINCH_START_THRESHOLD = 0.9; // Even tighter threshold to start pinching
-const PINCH_END_THRESHOLD = 1.2;   // Smaller threshold to end pinching
-const MAX_DRAG_TIME = 1500;        // 1.5 seconds max for pinch to be active without renewal (reduced from 2s)
-
-// Minimum confidence required for pinch detection
-const MIN_HAND_CONFIDENCE = 0.7;   // Only detect pinches when hand tracking is confident
-const MIN_PINCH_FRAMES = 2;        // Require consecutive frames of pinch detection before activating
-
-// Add tracking for consecutive pinch frames
-let consecutivePinchFrames = { left: 0, right: 0 };
-let consecutiveNonPinchFrames = { left: 0, right: 0 };
 
 // Visual representation of fingers in 3D scene
 // Create hand models with multiple joints for better 3D representation
@@ -239,9 +169,6 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
     // Define finger tip indices
     const fingerTips = [4, 8, 12, 16, 20];
     
-    // Highlight thumb (4) and index finger (8) as interactive fingers
-    const interactiveJoints = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // Thumb and index finger joints
-    
     // Update joint positions
     for (let i = 0; i < landmarks.length; i++) {
         const landmark = landmarks[i];
@@ -256,9 +183,6 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
         const z = baseDepth + (landmark.z * 6); // Z coordinate with depth scaling
         
         joint.position.set(x, y, z);
-        
-        // Determine if this is an interactive joint (thumb or index finger)
-        const isInteractiveJoint = interactiveJoints.includes(i);
         
         // Highlight active finger
         if (activeFingerIndex >= 0) {
@@ -296,36 +220,17 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
                 if (joint.userData.isFingerTip) {
                     joint.scale.set(1.5, 1.5, 1.5);
                 }
-            } else if (isInteractiveJoint) {
-                // Interactive but not active fingers get a distinct highlight
-                joint.material.emissive.set(0x00ffff);
-                joint.material.emissiveIntensity = 0.6;
-                joint.scale.set(1.2, 1.2, 1.2);
             } else {
-                // Non-interactive joints get a dimmer appearance
+                // Reset other joints
                 joint.material.emissive.set(baseColor);
-                joint.material.emissiveIntensity = 0.2;
-                joint.scale.set(0.8, 0.8, 0.8);
+                joint.material.emissiveIntensity = 0.3;
+                joint.scale.set(1, 1, 1);
             }
         } else {
-            // No active finger, just highlight interactive joints
-            if (isInteractiveJoint) {
-                // Thumb and index finger get highlighted
-                joint.material.emissive.set(0x00ffff);
-                joint.material.emissiveIntensity = 0.6;
-                
-                // Make thumb and index tips slightly larger
-                if (i === 4 || i === 8) {
-                    joint.scale.set(1.3, 1.3, 1.3);
-                } else {
-                    joint.scale.set(1.1, 1.1, 1.1);
-                }
-            } else {
-                // Other fingers appear dimmer
-                joint.material.emissive.set(baseColor);
-                joint.material.emissiveIntensity = 0.2;
-                joint.scale.set(0.8, 0.8, 0.8);
-            }
+            // No active finger, reset all joints
+            joint.material.emissive.set(baseColor);
+            joint.material.emissiveIntensity = 0.3;
+            joint.scale.set(1, 1, 1);
         }
         
         joint.visible = true;
@@ -348,11 +253,6 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
         
         // Orient bone to point from jointA to jointB
         bone.lookAt(posB);
-        
-        // Check if this bone is part of thumb or index finger
-        const isInteractiveBone = 
-            (jointA <= 4 && jointB <= 4) || // Thumb bones
-            (jointA >= 5 && jointA <= 8 && jointB >= 5 && jointB <= 8); // Index bones
         
         // Highlight active finger bones
         if (activeFingerIndex >= 0) {
@@ -387,33 +287,19 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
                 bone.material.emissiveIntensity = 0.8;
                 bone.scale.x = 1.5;
                 bone.scale.z = 1.5;
-            } else if (isInteractiveBone) {
-                // Interactive but not active bones
-                bone.material.emissive.set(0x00ffff);
-                bone.material.emissiveIntensity = 0.6;
-                bone.scale.x = 1.2;
-                bone.scale.z = 1.2;
             } else {
-                // Non-interactive bones
+                // Reset other bones
                 bone.material.emissive.set(baseColor);
-                bone.material.emissiveIntensity = 0.2;
-                bone.scale.x = 0.7;
-                bone.scale.z = 0.7;
+                bone.material.emissiveIntensity = 0.3;
+                bone.scale.x = 1;
+                bone.scale.z = 1;
             }
         } else {
-            // No active finger, highlight interactive bones
-            if (isInteractiveBone) {
-                bone.material.emissive.set(0x00ffff);
-                bone.material.emissiveIntensity = 0.6;
-                bone.scale.x = 1.2;
-                bone.scale.z = 1.2;
-            } else {
-                // Other bones appear dimmer
-                bone.material.emissive.set(baseColor);
-                bone.material.emissiveIntensity = 0.2;
-                bone.scale.x = 0.7;
-                bone.scale.z = 0.7;
-            }
+            // No active finger, reset all bones
+            bone.material.emissive.set(baseColor);
+            bone.material.emissiveIntensity = 0.3;
+            bone.scale.x = 1;
+            bone.scale.z = 1;
         }
         
         bone.visible = true;
@@ -670,9 +556,6 @@ function handleHandMouseMove(position) {
 function handleHandMouseUp() {
     console.log("Hand release detected");
     
-    // Force immediate release of any constraints even if we're not sure which ones
-    let constraintRemoved = false;
-    
     if (window.isDraggingChain) {
         console.log("Releasing dragged chain");
         // Reset dragging state
@@ -684,23 +567,13 @@ function handleHandMouseUp() {
         
         // Remove constraint
         if (window.dragConstraint) {
-            try {
-                world.removeConstraint(window.dragConstraint);
-                constraintRemoved = true;
-                console.log("Constraint removed");
-            } catch (e) {
-                console.error("Error removing constraint:", e);
-            }
+            world.removeConstraint(window.dragConstraint);
             window.dragConstraint = null;
+            console.log("Constraint removed");
         }
         
         window.isDraggingChain = false;
         window.draggedBody = null;
-        window.activeHand = null;
-        
-        // Also ensure both hands are marked as not dragging
-        if (hands.left) hands.left.isDragging = false;
-        if (hands.right) hands.right.isDragging = false;
         
         // Check for knots and update score
         if (typeof calculateKnotFactor === 'function' && typeof updateScore === 'function') {
@@ -727,61 +600,8 @@ function handleHandMouseUp() {
         return true;
     }
     
-    return constraintRemoved;
+    return false;
 }
-
-// Add text-to-speech functionality
-let speechSynthesisInitialized = false;
-let bothHandsAnnounced = false;
-
-function speakText(text) {
-    // Check if the browser supports Speech Synthesis
-    if ('speechSynthesis' in window) {
-        // Create a new SpeechSynthesisUtterance
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Set properties (optional)
-        utterance.volume = 1.0; // 0 to 1
-        utterance.rate = 1.0;   // 0.1 to 10
-        utterance.pitch = 1.0;  // 0 to 2
-        
-        // Speak the text
-        window.speechSynthesis.speak(utterance);
-        
-        return true;
-    } else {
-        console.warn("Browser does not support Speech Synthesis");
-        return false;
-    }
-}
-
-// Initialize speech synthesis when the document is ready
-document.addEventListener('DOMContentLoaded', function() {
-    speechSynthesisInitialized = true;
-    console.log("Speech synthesis initialized");
-    
-    // Reset all drag states on page load to ensure a clean state
-    resetAllDragStates();
-    
-    // Add a key press handler for emergency release (ESC key)
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            console.log("Emergency release triggered by ESC key");
-            resetAllDragStates();
-        }
-    });
-    
-    // Add a visibility change listener to reset states when tab becomes visible again
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'visible') {
-            console.log("Page became visible again, resetting drag states");
-            resetAllDragStates();
-        }
-    });
-});
-
-// Add a timeout for dragging to ensure it's released
-let dragTimeouts = { left: null, right: null };
 
 // Process results from hand tracking
 mpHands.onResults(results => {
@@ -790,28 +610,6 @@ mpHands.onResults(results => {
 
     // Draw the camera feed on the canvas
     handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
-    
-    // Global consistency check - if we have inconsistent state, reset everything
-    if (window.isDraggingChain) {
-        // Verify we have all the required objects for a valid dragging state
-        if (!window.draggedLink || !window.dragConstraint || !window.draggedBody || !window.activeHand) {
-            console.error("Inconsistent dragging state detected, resetting all drag states");
-            resetAllDragStates();
-        }
-        
-        // If dragging but neither hand is marked as dragging, we have an inconsistency
-        if (!(hands.left.isDragging || hands.right.isDragging)) {
-            console.error("isDraggingChain is true but no hand is marked as dragging, resetting all states");
-            resetAllDragStates();
-        }
-    }
-    
-    // If any hand is marked as dragging but global isDraggingChain is false, reset
-    if (!window.isDraggingChain && (hands.left.isDragging || hands.right.isDragging)) {
-        console.error("Hand marked as dragging but global isDraggingChain is false, resetting");
-        hands.left.isDragging = false;
-        hands.right.isDragging = false;
-    }
 
     // Reset hand visibility
     leftFingerMesh.visible = false;
@@ -820,17 +618,8 @@ mpHands.onResults(results => {
     rightHandModel.group.visible = false;
 
     let statusText = "";
-    
-    // Keep track of which hands were active before this frame
-    const wasLeftActive = hands.left.active;
-    const wasRightActive = hands.right.active;
-    
-    // Reset hand active states for this frame
-    hands.left.active = false;
-    hands.right.active = false;
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        // Draw instructions on the canvas once per frame
         // Process each detected hand
         for (let i = 0; i < results.multiHandLandmarks.length; i++) {
             const landmarks = results.multiHandLandmarks[i];
@@ -849,9 +638,6 @@ mpHands.onResults(results => {
             // Note: MediaPipe returns 'Left' for right hand and 'Right' for left hand when viewed in mirror mode
             // Since we're inverting the camera, we'll use the correct mapping (no switch)
             const hand = handedness === 'Right' ? 'right' : 'left';
-            
-            // Mark this hand as active
-            hands[hand].active = true;
 
             // Store all landmarks for better 3D calculations
             hands[hand].landmarks = landmarks;
@@ -872,9 +658,6 @@ mpHands.onResults(results => {
                 const handModel = hand === 'left' ? leftHandModel : rightHandModel;
                 const handPositions = updateHandModel(handModel, landmarks, depthFactor, hands[hand].activeFingerIndex);
                 
-                // Record hand activity for tracking purposes
-                window.lastHandActivityTime = Date.now();
-                
                 // Use index finger tip (landmark 8) and thumb tip (landmark 4) for interaction
                 hands[hand].indexFingerTip = landmarks[8];
                 hands[hand].thumbTip = landmarks[4];
@@ -883,133 +666,21 @@ mpHands.onResults(results => {
                 const thumbTip = handModel.joints[4].position.clone();
                 const indexTip = handModel.joints[8].position.clone();
                 const pinchDistance = thumbTip.distanceTo(indexTip);
-                
-                // Check the confidence of this hand detection
-                const handConfidence = results.multiHandedness[i].score;
+                const isPinching = pinchDistance < 1.2; // Pinch threshold
                 
                 // Get 3D positions for interaction
                 const pinchPosition = new THREE.Vector3().addVectors(thumbTip, indexTip).multiplyScalar(0.5);
                 
-                // Raw pinch detection based on thresholds and hysteresis
-                let rawPinchDetected;
-                if (!hands[hand].wasPinching) {
-                    // Not currently pinching, use the tighter threshold to start pinching
-                    rawPinchDetected = pinchDistance < PINCH_START_THRESHOLD;
-                } else {
-                    // Already pinching, use the more forgiving threshold to maintain pinch
-                    rawPinchDetected = pinchDistance < PINCH_END_THRESHOLD;
-                }
-                
-                // Update consecutive frame counters
-                if (rawPinchDetected) {
-                    consecutivePinchFrames[hand]++;
-                    consecutiveNonPinchFrames[hand] = 0;
-                } else {
-                    consecutiveNonPinchFrames[hand]++;
-                    consecutivePinchFrames[hand] = 0;
-                }
-                
-                // Final pinch detection with confidence and consecutive frame requirements
-                let isPinching = false;
-                
-                // To start pinching: need minimum consecutive pinch frames and good confidence
-                if (!hands[hand].wasPinching && 
-                    consecutivePinchFrames[hand] >= MIN_PINCH_FRAMES && 
-                    handConfidence >= MIN_HAND_CONFIDENCE) {
-                    isPinching = true;
-                }
-                // To maintain pinching: still seeing pinch or haven't seen enough non-pinch frames
-                else if (hands[hand].wasPinching && 
-                         (rawPinchDetected || consecutiveNonPinchFrames[hand] < MIN_PINCH_FRAMES)) {
-                    isPinching = true;
-                }
-                // Otherwise, not pinching
-                else {
-                    isPinching = false;
-                }
-                
-                // Log the pinch state and distance for debugging
-                if (isPinching !== hands[hand].wasPinching) {
-                    console.log(`${hand} pinch state changed to ${isPinching ? 'pinching' : 'not pinching'}, distance: ${pinchDistance.toFixed(2)}, confidence: ${handConfidence.toFixed(2)}`);
-                }
-                
-                // Update status with 3D position information and clear instructions
+                // Update status with 3D position information
                 statusText += `${hand.charAt(0).toUpperCase() + hand.slice(1)} hand detected: (${pinchPosition.x.toFixed(2)}, ${pinchPosition.y.toFixed(2)}, ${pinchPosition.z.toFixed(2)})\n`;
-                statusText += `Pinching: ${isPinching ? 'YES' : 'NO'} (${pinchDistance.toFixed(2)}, conf: ${handConfidence.toFixed(2)})\n`;
-                statusText += `Use THUMB and INDEX finger to pinch objects\n`;
-                
-                // Store the previous pinch state if not defined
-                if (hands[hand].wasPinching === undefined) {
-                    hands[hand].wasPinching = false;
-                }
-                
-                // Force an immediate release if no pinch is clearly detected
-                if (!rawPinchDetected && hands[hand].isDragging) {
-                    // If we're dragging but clearly not pinching, force a release
-                    console.log(`Forced release for ${hand} - no pinch detected but was dragging`);
-                    handleHandMouseUp();
-                    hands[hand].isDragging = false;
-                    hands[hand].wasPinching = false;
-                    if (window.activeHand === hand) window.activeHand = null;
-                    
-                    // Clear any timeouts
-                    if (dragTimeouts[hand]) {
-                        clearTimeout(dragTimeouts[hand]);
-                        dragTimeouts[hand] = null;
-                    }
-                }
+                statusText += `Pinching: ${isPinching ? 'YES' : 'NO'}\n`;
                 
                 // Highlight pinching fingers
                 if (isPinching) {
-                    // Bright yellow highlight for detected pinch
                     handModel.joints[4].material.emissive.set(0xffff00);
                     handModel.joints[4].material.emissiveIntensity = 0.8;
                     handModel.joints[8].material.emissive.set(0xffff00);
                     handModel.joints[8].material.emissiveIntensity = 0.8;
-                    
-                    // Make pinch points larger for visual feedback
-                    handModel.joints[4].scale.set(2, 2, 2);
-                    handModel.joints[8].scale.set(2, 2, 2);
-                    
-                    // Draw a bright connecting line between thumb and index
-                    const lineColor = new THREE.Color(0xffff00);
-                    handCtx.beginPath();
-                    handCtx.strokeStyle = `rgb(${Math.floor(lineColor.r * 255)}, ${Math.floor(lineColor.g * 255)}, ${Math.floor(lineColor.b * 255)})`;
-                    handCtx.lineWidth = 6; // Thicker line
-                    
-                    // Convert 3D positions back to 2D for canvas drawing
-                    const thumb2D = {
-                        x: landmarks[4].x * handCanvas.width,
-                        y: landmarks[4].y * handCanvas.height
-                    };
-                    const index2D = {
-                        x: landmarks[8].x * handCanvas.width,
-                        y: landmarks[8].y * handCanvas.height
-                    };
-                    
-                    // Draw the main line
-                    handCtx.moveTo(thumb2D.x, thumb2D.y);
-                    handCtx.lineTo(index2D.x, index2D.y);
-                    handCtx.stroke();
-                    
-                    // Draw circles at the pinch points
-                    handCtx.fillStyle = 'rgba(255, 255, 0, 0.7)';
-                    handCtx.beginPath();
-                    handCtx.arc(thumb2D.x, thumb2D.y, 15, 0, Math.PI * 2);
-                    handCtx.fill();
-                    handCtx.beginPath();
-                    handCtx.arc(index2D.x, index2D.y, 15, 0, Math.PI * 2);
-                    handCtx.fill();
-                    
-                    // Add a "PINCHING" indicator near the pinch
-                    const midX = (thumb2D.x + index2D.x) / 2;
-                    const midY = (thumb2D.y + index2D.y) / 2 - 25;
-                    
-                    // Also add a 3D visual effect at the pinch point in the 3D scene
-                    addHapticFeedback(pinchPosition, 0.3);
-                    
-                    // Track that we were pinching
-                    hands[hand].wasPinching = true;
                     
                     // Handle pinch interaction
                     if (!hands[hand].isDragging) {
@@ -1019,65 +690,16 @@ mpHands.onResults(results => {
                         if (success && window.isDraggingChain) {
                             hands[hand].isDragging = true;
                             window.activeHand = hand;
-                            
-                            // Set a timeout to automatically release the drag if it stays active too long
-                            // (failsafe for tracking issues)
-                            if (dragTimeouts[hand]) {
-                                clearTimeout(dragTimeouts[hand]);
-                            }
-                            dragTimeouts[hand] = setTimeout(() => {
-                                if (hands[hand].isDragging) {
-                                    console.log("Failsafe: Releasing drag after timeout");
-                                    handleHandMouseUp();
-                                    hands[hand].isDragging = false;
-                                    window.activeHand = null;
-                                    hands[hand].wasPinching = false;
-                                }
-                            }, MAX_DRAG_TIME);
                         }
                     } else if (hands[hand].isDragging) {
                         // Update position while dragging
                         handleHandMouseMove(pinchPosition);
-                        
-                        // Renew the timeout as we're still actively dragging
-                        if (dragTimeouts[hand]) {
-                            clearTimeout(dragTimeouts[hand]);
-                        }
-                        dragTimeouts[hand] = setTimeout(() => {
-                            if (hands[hand].isDragging) {
-                                console.log("Failsafe: Releasing drag after timeout");
-                                handleHandMouseUp();
-                                hands[hand].isDragging = false;
-                                window.activeHand = null;
-                                hands[hand].wasPinching = false;
-                            }
-                        }, MAX_DRAG_TIME);
                     }
-                } else {
-                    // Reset pinch highlights with red color for clear visual feedback that pinch is NOT detected
-                    handModel.joints[4].material.emissive.set(0xff0000);
-                    handModel.joints[4].material.emissiveIntensity = 0.3;
-                    handModel.joints[8].material.emissive.set(0xff0000);
-                    handModel.joints[8].material.emissiveIntensity = 0.3;
-                    handModel.joints[4].scale.set(1, 1, 1);
-                    handModel.joints[8].scale.set(1, 1, 1);
-                    
-                    // Clear any drag timeouts
-                    if (dragTimeouts[hand]) {
-                        clearTimeout(dragTimeouts[hand]);
-                        dragTimeouts[hand] = null;
-                    }
-                    
-                    // If we were previously pinching but now we're not, release the drag
-                    if (hands[hand].wasPinching && hands[hand].isDragging) {
-                        console.log("Pinch released, ending drag");
-                        handleHandMouseUp();
-                        hands[hand].isDragging = false;
-                        window.activeHand = null;
-                    }
-                    
-                    // Update pinch tracking
-                    hands[hand].wasPinching = false;
+                } else if (hands[hand].isDragging) {
+                    // Release if no longer pinching
+                    handleHandMouseUp();
+                    hands[hand].isDragging = false;
+                    window.activeHand = null;
                 }
             } catch (error) {
                 console.error("Error processing hand:", error);
@@ -1085,22 +707,6 @@ mpHands.onResults(results => {
         }
 
         isHandTracking = true;
-        
-        // Check if both hands are detected
-        if (hands.left.active && hands.right.active && !bothHandsAnnounced && speechSynthesisInitialized) {
-            // Only announce if the game hasn't started yet
-            if (typeof gameStarted !== 'undefined' && !gameStarted) {
-                console.log("Both hands detected - announcing via TTS");
-                speakText("Both hands detected. Please say a difficulty.");
-                bothHandsAnnounced = true;
-                
-                // Add a visual indicator for the announcement
-                statusText += "VOICE COMMAND: Please say a difficulty level\n";
-            }
-        } else if (!(hands.left.active && hands.right.active)) {
-            // Reset announcement flag when both hands are no longer detected
-            bothHandsAnnounced = false;
-        }
     } else {
         statusText = "No hands detected";
         isHandTracking = false;
@@ -1112,38 +718,6 @@ mpHands.onResults(results => {
             if (hands.left.isDragging) hands.left.isDragging = false;
             if (hands.right.isDragging) hands.right.isDragging = false;
             window.activeHand = null;
-        }
-        
-        // Reset announcement state when no hands are detected
-        bothHandsAnnounced = false;
-    }
-    
-    // Check for hands that were active but now disappeared
-    if (wasLeftActive && !hands.left.active && hands.left.isDragging) {
-        console.log("Left hand was lost during dragging, releasing constraint");
-        handleHandMouseUp();
-        hands.left.isDragging = false;
-        if (window.activeHand === 'left') window.activeHand = null;
-        hands.left.wasPinching = false;
-        
-        // Clear any timeouts
-        if (dragTimeouts.left) {
-            clearTimeout(dragTimeouts.left);
-            dragTimeouts.left = null;
-        }
-    }
-    
-    if (wasRightActive && !hands.right.active && hands.right.isDragging) {
-        console.log("Right hand was lost during dragging, releasing constraint");
-        handleHandMouseUp();
-        hands.right.isDragging = false;
-        if (window.activeHand === 'right') window.activeHand = null;
-        hands.right.wasPinching = false;
-        
-        // Clear any timeouts
-        if (dragTimeouts.right) {
-            clearTimeout(dragTimeouts.right);
-            dragTimeouts.right = null;
         }
     }
 
@@ -1185,31 +759,7 @@ camera2.start().then(() => {
     
     // Initialize debug visualization
     initDebugVisualization();
-    
-    // Add a periodic reset check to catch any stuck state
-    setInterval(() => {
-        // If we think we're dragging but both hands are inactive for some time, reset
-        if (window.isDraggingChain && 
-            !hands.left.active && !hands.right.active) {
-            console.log("Safety reset: Dragging with inactive hands");
-            resetAllDragStates();
-        }
-        
-        // If it's been more than 5 seconds since we detected any hand movement
-        // and we're still in a dragging state, reset as a precaution
-        const now = Date.now();
-        if (window.isDraggingChain && 
-            window.lastHandActivityTime && 
-            (now - window.lastHandActivityTime > 5000)) {
-            console.log("Safety reset: No hand activity for 5 seconds while dragging");
-            resetAllDragStates();
-        }
-    }, 1000); // Run this check every second
-    
 }).catch(err => {
     console.error("Error starting camera: ", err);
     statusElement.textContent = "Error starting camera. Please check permissions.";
-});
-
-// Initialize last hand activity timestamp
-window.lastHandActivityTime = Date.now(); 
+}); 

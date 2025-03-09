@@ -10,7 +10,7 @@ let knotCheckInterval = 500; // Check for knots every 500ms
 // Difficulty settings
 const difficulties = {
     easy: {
-        time: 600, // minutes
+        time: 9999, // minutes
         label: "Easy",
         scoreThresholds: {
             poor: 5,
@@ -67,11 +67,6 @@ function startGame() {
     gameOver = false;
     score = 0;
     document.getElementById('score').textContent = score;
-    
-    // Reset the hand announcement flag if it exists
-    if (typeof bothHandsAnnounced !== 'undefined') {
-        bothHandsAnnounced = true; // Prevent announcing after game starts
-    }
 
     // Make UI elements visible
     document.getElementById('timer-container').style.opacity = 1;
@@ -531,7 +526,7 @@ function measureChainLength() {
     // Calculate direct distance between anchor and end
     const distance = Math.sqrt(
 
-        Math.pow(endPosition.y - anchorPosition.y, 2)
+        Math.pow(endPosition.y - anchorPosition.y, 2) 
 
     );
 
@@ -540,16 +535,9 @@ function measureChainLength() {
 
 
 // Function to perform knot measurement
-function measureKnot(isFinalMeasurement = false) {
+function measureKnot() {
     if (isMeasuring) return;
     isMeasuring = true;
-
-    // Get the measure button and update its text
-    const measureButton = document.getElementById('measureKnot');
-    if (measureButton) {
-        measureButton.textContent = "Measuring...";
-        measureButton.disabled = true; // Disable the button during measurement
-    }
 
     // Store original gravity
     const originalGravity = world.gravity.clone();
@@ -575,38 +563,15 @@ function measureKnot(isFinalMeasurement = false) {
             // Determine knottedness level
             let knottedness;
             if (ratio > 0.95) knottedness = 'Not knotted';
-            else if (ratio > 0.85) knottedness = 'Slightly knotted';
-            else if (ratio > 0.75) knottedness = 'Moderately knotted';
-            else if (ratio > 0.65) knottedness = 'Well knotted';
-            else if (ratio > 0.55) knottedness = 'Very knotted';
-            else knottedness = 'Extremely knotted!';
+            else if (ratio > 0.8) knottedness = 'Slightly knotted';
+            else if (ratio > 0.6) knottedness = 'Moderately knotted';
+            else knottedness = 'Heavily knotted';
             
             document.getElementById('knottedness').textContent = knottedness;
-            
-            // Update the game score with this measurement
-            const straightness = measureStraightness();
-            updateGameScore(ratio, straightness);
         }
         
-        // Reset gravity
+        // Restore original gravity
         world.gravity.copy(originalGravity);
-        
-        // Reset button text and state
-        if (measureButton) {
-            measureButton.textContent = "Measure Knot";
-            measureButton.disabled = false;
-        }
-        
-        // Clear measurement state
         isMeasuring = false;
-        
-        // If this is the final measurement for ending the game, proceed with endGame
-        if (isFinalMeasurement && !gameOver) {
-            console.log("Final measurement complete, ending game");
-            setTimeout(() => {
-                endGame();
-            }, 500); // Short delay to ensure UI updates
-        }
-        
-    }, 1000);
+    }, 17000); // Wait 2 seconds for chain to stabilize
 } 
