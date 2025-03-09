@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Rope Physics with Dual Hand Tracking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+    <div id="controls">
+        <h3>3D Rope Physics with Dual Hand Tracking</h3>
+        <button id="addChain">Add Rope</button>
+        <button id="toggleGravity">Toggle Gravity</button>
+        <button id="reset">Reset Rope</button>
+        <button id="measureKnot">Measure Knot</button>
+        <div id="tangleMetrics" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+            <p>Tangle Metrics:</p>
+            <p>Complexity: <span id="tangleComplexity">0</span></p>
+            <p>Crossings: <span id="tangleCrossings">0</span></p>
+            <p>Knot Rating: <span id="knotRating">Not measured</span></p>
+        </div>
+        <div>
+            <p>Controls:</p>
+            <p>- Use index fingers to interact with ropes</p>
+            <p>- Pinch to hold the rope</p>
+            <p>- Left hand (Blue) / Right hand (Red)</p>
+            <p>- Click and drag to rotate view</p>
+            <p>- Scroll to zoom</p>
+            <p>- Press 'M' or say "menu" to toggle this panel</p>
+            <p>- Make knots to score points!</p>
+        </div>
+    </div>
+
+    <div id="voice-indicator">
+        <div id="voice-indicator-icon"></div>
+        <span>Say <span class="command">"restart"</span> or <span class="command">"menu"</span></span>
+    </div>
+
+    <div id="timer-container">Time: <span id="timer">60</span></div>
+    <div id="score-container">Score: <span id="score">0</span></div>
+
+    <div id="video-container">
+        <video id="videoElement" playsinline></video>
+    </div>
+    <div id="game-prompt">Please start the game and <span class="highlight">tie knots</span> in the rope to score
+        points!</div>
+    <canvas id="handCanvas"></canvas>
+    <div id="status">Loading hand tracking...</div>
+
+    <div id="game-over-container">
+        <h2>Time's Up!</h2>
+        <p>You tied <span id="final-score">0</span> knots!</p>
+    </div>
+
+    <div id="difficulty-container">
+        <h2>Select Difficulty</h2>
+        <button id="easy-button" class="difficulty-button">
+            Easy
+            <span class="difficulty-time">2:00 minutes</span>
+        </button>
+        <button id="medium-button" class="difficulty-button">
+            Medium
+            <span class="difficulty-time">1:00 minute</span>
+        </button>
+        <button id="hard-button" class="difficulty-button">
+            Hard
+            <span class="difficulty-time">0:30 seconds</span>
+        </button>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="js/scene.js"></script>
+    <script src="js/rope.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/handtracking.js"></script>
+    <script src="js/voice.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <!-- Initialize Animation -->
+    <script>
+        // Start the animation loop
+        animate();
+        
+        // Add tangle metrics update
+        function updateTangleMetrics() {
+            document.getElementById('tangleComplexity').textContent = 
+                (currentTangleComplexity * 100).toFixed(1) + '%';
+            document.getElementById('tangleCrossings').textContent = currentCrossings;
+        }
+        
+        // Update metrics every 100ms
+        setInterval(updateTangleMetrics, 100);
+        
+        // Start voice recognition
+        document.addEventListener('DOMContentLoaded', () => {
+            startContinuousVoiceRecognition();
+        });
+    </script>
+</body>
+
+</html> 
