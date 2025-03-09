@@ -199,12 +199,13 @@ function stopContinuousVoiceRecognition() {
         window.sharedAudioStream.getTracks().forEach(track => track.stop());
         window.sharedAudioStream = null;
     }
-} async function transcribeAudio(audioBlob) {
+}
+
+async function transcribeAudio(audioBlob) {
     try {
         // Convert blob to base64
         const base64Data = await blobToBase64(audioBlob);
 
-        // const response = await fetch("https://mountain-backend.vercel.app/fake", {
         const response = await fetch("https://mountain-backend.vercel.app/transcribe", {
             method: "POST",
             headers: {
@@ -231,7 +232,6 @@ function stopContinuousVoiceRecognition() {
         throw error;
     }
 }
-
 
 // Function to convert Blob to Base64
 function blobToBase64(blob) {
@@ -524,13 +524,37 @@ function startGameWithDifficulty(difficultyLevel) {
 
 // Function to handle the measure knot voice command
 function measureKnotVoiceCommand() {
-    if (KNOT_CONFIG.isActive) {
-        // If already measuring, cancel it
-        endKnotMeasurement(false);
+    // Only allow the command during active gameplay
+    if (!gameStarted || gameOver) {
+        console.log("Measure command ignored: game is not active");
+        flashVoiceIndicator("Measure unavailable - start game first");
         return;
     }
     
-    // Start the measurement process
-    startKnotMeasurement();
+    // Update the button visually as well, for consistency
+    const measureButton = document.getElementById('measureKnot');
+    if (measureButton) {
+        measureButton.textContent = "Measuring...";
+        measureButton.disabled = true;
+    }
+    
+    // Measure knot and end the game
+    console.log("Measure and end command detected");
+    flashVoiceIndicator("Measuring final knot and ending game");
+    
+    // First measure the knot with isFinalMeasurement=true to indicate this is the final measurement
+    if (typeof measureKnot === 'function') {
+        measureKnot(true); // Pass true to indicate this is the final measurement
+        
+        // No need for the timeout to call endGame separately, as measureKnot will handle that
+    } else {
+        console.error("measureKnot function not found");
+        
+        // Reset button if measurement function not found
+        if (measureButton) {
+            measureButton.textContent = "Measure Knot";
+            measureButton.disabled = false;
+        }
+    }
 } 
 

@@ -540,9 +540,16 @@ function measureChainLength() {
 
 
 // Function to perform knot measurement
-function measureKnot() {
+function measureKnot(isFinalMeasurement = false) {
     if (isMeasuring) return;
     isMeasuring = true;
+
+    // Get the measure button and update its text
+    const measureButton = document.getElementById('measureKnot');
+    if (measureButton) {
+        measureButton.textContent = "Measuring...";
+        measureButton.disabled = true; // Disable the button during measurement
+    }
 
     // Store original gravity
     const originalGravity = world.gravity.clone();
@@ -568,15 +575,38 @@ function measureKnot() {
             // Determine knottedness level
             let knottedness;
             if (ratio > 0.95) knottedness = 'Not knotted';
-            else if (ratio > 0.8) knottedness = 'Slightly knotted';
-            else if (ratio > 0.6) knottedness = 'Moderately knotted';
-            else knottedness = 'Heavily knotted';
+            else if (ratio > 0.85) knottedness = 'Slightly knotted';
+            else if (ratio > 0.75) knottedness = 'Moderately knotted';
+            else if (ratio > 0.65) knottedness = 'Well knotted';
+            else if (ratio > 0.55) knottedness = 'Very knotted';
+            else knottedness = 'Extremely knotted!';
             
             document.getElementById('knottedness').textContent = knottedness;
+            
+            // Update the game score with this measurement
+            const straightness = measureStraightness();
+            updateGameScore(ratio, straightness);
         }
         
-        // Restore original gravity
+        // Reset gravity
         world.gravity.copy(originalGravity);
+        
+        // Reset button text and state
+        if (measureButton) {
+            measureButton.textContent = "Measure Knot";
+            measureButton.disabled = false;
+        }
+        
+        // Clear measurement state
         isMeasuring = false;
-    }, 17000); // Wait 2 seconds for chain to stabilize
+        
+        // If this is the final measurement for ending the game, proceed with endGame
+        if (isFinalMeasurement && !gameOver) {
+            console.log("Final measurement complete, ending game");
+            setTimeout(() => {
+                endGame();
+            }, 500); // Short delay to ensure UI updates
+        }
+        
+    }, 1000);
 } 
