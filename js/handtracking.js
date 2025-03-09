@@ -43,7 +43,7 @@ const hands = {
 // Create hand models with multiple joints for better 3D representation
 function createHandModel(color) {
     const handGroup = new THREE.Group();
-    
+
     // Create finger joints
     const joints = [];
     const jointGeometry = new THREE.SphereGeometry(0.1, 16, 16);
@@ -54,16 +54,16 @@ function createHandModel(color) {
         roughness: 0.3,
         metalness: 0.7
     });
-    
+
     // Create larger geometries for finger tips to make them more visible
     const tipGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-    
+
     // Create 21 joints (MediaPipe hand model has 21 landmarks)
     for (let i = 0; i < 21; i++) {
         // Use larger geometry for finger tips (4, 8, 12, 16, 20)
         const isFingerTip = [4, 8, 12, 16, 20].includes(i);
         const geometry = isFingerTip ? tipGeometry : jointGeometry;
-        
+
         const joint = new THREE.Mesh(geometry, jointMaterial.clone());
         joint.castShadow = true;
         joint.visible = false;
@@ -71,7 +71,7 @@ function createHandModel(color) {
         handGroup.add(joint);
         joints.push(joint);
     }
-    
+
     // Create connections between joints (bones)
     const connections = [
         // Thumb
@@ -87,11 +87,11 @@ function createHandModel(color) {
         // Palm
         [5, 9], [9, 13], [13, 17]
     ];
-    
+
     const bones = [];
     const boneGeometry = new THREE.CylinderGeometry(0.03, 0.03, 1, 8);
     boneGeometry.rotateX(Math.PI / 2); // Align cylinder with Z-axis
-    
+
     for (let i = 0; i < connections.length; i++) {
         const bone = new THREE.Mesh(boneGeometry, jointMaterial.clone());
         bone.castShadow = true;
@@ -99,9 +99,9 @@ function createHandModel(color) {
         handGroup.add(bone);
         bones.push(bone);
     }
-    
+
     scene.add(handGroup);
-    
+
     return {
         group: handGroup,
         joints: joints,
@@ -162,18 +162,18 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
     const bones = handModel.bones;
     const connections = handModel.connections;
     const baseColor = handModel.baseColor;
-    
+
     // Base depth for the hand in 3D space
     const baseDepth = 3 + ((1 - depthFactor) * 17);
-    
+
     // Define finger tip indices
     const fingerTips = [4, 8, 12, 16, 20];
-    
+
     // Update joint positions
     for (let i = 0; i < landmarks.length; i++) {
         const landmark = landmarks[i];
         const joint = joints[i];
-        
+
         // Convert from normalized coordinates to 3D world coordinates
         // X: -1 to 1 (left to right)
         // Y: 1 to -1 (top to bottom)
@@ -181,16 +181,16 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
         const x = ((landmark.x * 2) - 1) * -10; // Flip X for mirror effect
         const y = (((landmark.y * 2) - 1) * -1) * 6; // Y coordinate
         const z = baseDepth + (landmark.z * 6); // Z coordinate with depth scaling
-        
+
         joint.position.set(x, y, z);
-        
+
         // Highlight active finger
         if (activeFingerIndex >= 0) {
             const activeTip = fingerTips[activeFingerIndex];
-            
+
             // Determine if this joint is part of the active finger
             let isActiveFingerJoint = false;
-            
+
             if (i === activeTip) {
                 // This is the active finger tip
                 isActiveFingerJoint = true;
@@ -210,12 +210,12 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
                 // Pinky joints
                 isActiveFingerJoint = true;
             }
-            
+
             if (isActiveFingerJoint) {
                 // Highlight active finger with brighter color and emissive
                 joint.material.emissive.set(0xffff00);
                 joint.material.emissiveIntensity = 0.8;
-                
+
                 // Make active finger tips larger
                 if (joint.userData.isFingerTip) {
                     joint.scale.set(1.5, 1.5, 1.5);
@@ -232,55 +232,55 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
             joint.material.emissiveIntensity = 0.3;
             joint.scale.set(1, 1, 1);
         }
-        
+
         joint.visible = true;
     }
-    
+
     // Update bone positions and orientations
     for (let i = 0; i < connections.length; i++) {
         const [jointA, jointB] = connections[i];
         const bone = bones[i];
-        
+
         const posA = joints[jointA].position;
         const posB = joints[jointB].position;
-        
+
         // Position bone at midpoint between joints
         bone.position.copy(posA).add(posB).multiplyScalar(0.5);
-        
+
         // Calculate bone length
         const length = posA.distanceTo(posB);
         bone.scale.set(1, 1, length);
-        
+
         // Orient bone to point from jointA to jointB
         bone.lookAt(posB);
-        
+
         // Highlight active finger bones
         if (activeFingerIndex >= 0) {
             // Check if this bone is part of the active finger
             let isActiveFingerBone = false;
-            
-            if (activeFingerIndex === 0 && 
+
+            if (activeFingerIndex === 0 &&
                 ((jointA >= 0 && jointA <= 4) && (jointB >= 0 && jointB <= 4))) {
                 // Thumb bones
                 isActiveFingerBone = true;
-            } else if (activeFingerIndex === 1 && 
-                      ((jointA >= 5 && jointA <= 8) && (jointB >= 5 && jointB <= 8))) {
+            } else if (activeFingerIndex === 1 &&
+                ((jointA >= 5 && jointA <= 8) && (jointB >= 5 && jointB <= 8))) {
                 // Index finger bones
                 isActiveFingerBone = true;
-            } else if (activeFingerIndex === 2 && 
-                      ((jointA >= 9 && jointA <= 12) && (jointB >= 9 && jointB <= 12))) {
+            } else if (activeFingerIndex === 2 &&
+                ((jointA >= 9 && jointA <= 12) && (jointB >= 9 && jointB <= 12))) {
                 // Middle finger bones
                 isActiveFingerBone = true;
-            } else if (activeFingerIndex === 3 && 
-                      ((jointA >= 13 && jointA <= 16) && (jointB >= 13 && jointB <= 16))) {
+            } else if (activeFingerIndex === 3 &&
+                ((jointA >= 13 && jointA <= 16) && (jointB >= 13 && jointB <= 16))) {
                 // Ring finger bones
                 isActiveFingerBone = true;
-            } else if (activeFingerIndex === 4 && 
-                      ((jointA >= 17 && jointA <= 20) && (jointB >= 17 && jointB <= 20))) {
+            } else if (activeFingerIndex === 4 &&
+                ((jointA >= 17 && jointA <= 20) && (jointB >= 17 && jointB <= 20))) {
                 // Pinky bones
                 isActiveFingerBone = true;
             }
-            
+
             if (isActiveFingerBone) {
                 // Highlight active finger bones
                 bone.material.emissive.set(0xffff00);
@@ -301,12 +301,12 @@ function updateHandModel(handModel, landmarks, depthFactor, activeFingerIndex) {
             bone.scale.x = 1;
             bone.scale.z = 1;
         }
-        
+
         bone.visible = true;
     }
-    
+
     handModel.group.visible = true;
-    
+
     return {
         indexFingerTip: joints[8].position.clone(),
         thumbTip: joints[4].position.clone()
@@ -330,7 +330,7 @@ function initDebugVisualization() {
     debugSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     debugSphere.visible = false;
     scene.add(debugSphere);
-    
+
     // Create debug text for 3D feedback
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -341,8 +341,8 @@ function initDebugVisualization() {
     context.font = '24px Arial';
     context.fillStyle = 'white';
     context.textAlign = 'center';
-    context.fillText('Hand Tracking Debug', canvas.width/2, canvas.height/2);
-    
+    context.fillText('Hand Tracking Debug', canvas.width / 2, canvas.height / 2);
+
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.MeshBasicMaterial({
         map: texture,
@@ -354,7 +354,7 @@ function initDebugVisualization() {
     debugText.position.set(0, 10, 0);
     debugText.visible = false;
     scene.add(debugText);
-    
+
     // Add debug toggle to UI
     // const controls = document.getElementById('controls');
     // const debugButton = document.createElement('button');
@@ -362,7 +362,7 @@ function initDebugVisualization() {
     // debugButton.textContent = 'Toggle';
     // debugButton.addEventListener('click', toggleDebugView);
     // controls.appendChild(debugButton);
-    
+
     // console.log('Debug visualization initialized');
 }
 
@@ -370,21 +370,21 @@ function initDebugVisualization() {
 let debugViewEnabled = false;
 function toggleDebugView() {
     debugViewEnabled = !debugViewEnabled;
-    document.getElementById('toggleDebug').textContent = 
+    document.getElementById('toggleDebug').textContent =
         debugViewEnabled ? 'Hide Debug View' : 'Show Debug View';
-    
+
     if (!debugViewEnabled) {
         if (debugSphere) debugSphere.visible = false;
         if (debugText) debugText.visible = false;
     }
-    
+
     console.log('Debug view ' + (debugViewEnabled ? 'enabled' : 'disabled'));
 }
 
 // Update debug text
 function updateDebugText(text) {
     if (!debugText || !debugViewEnabled) return;
-    
+
     const canvas = debugText.material.map.image;
     const context = canvas.getContext('2d');
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -393,15 +393,15 @@ function updateDebugText(text) {
     context.font = '18px Arial';
     context.fillStyle = 'white';
     context.textAlign = 'center';
-    
+
     // Split text into lines
     const lines = text.split('\n');
     let y = 30;
     for (const line of lines) {
-        context.fillText(line, canvas.width/2, y);
+        context.fillText(line, canvas.width / 2, y);
         y += 20;
     }
-    
+
     debugText.material.map.needsUpdate = true;
     debugText.visible = true;
 }
@@ -422,34 +422,34 @@ function addHapticFeedback(position, duration = 0.3) {
         opacity: 0.7,
         side: THREE.DoubleSide
     });
-    
+
     const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
     ripple.position.copy(position);
-    
+
     // Orient ripple to face camera
     ripple.lookAt(camera.position);
-    
+
     scene.add(ripple);
-    
+
     // Animate the ripple
     const startTime = Date.now();
-    const animate = function() {
+    const animate = function () {
         const elapsed = (Date.now() - startTime) / 1000;
         const progress = elapsed / duration;
-        
+
         if (progress < 1) {
             // Scale up and fade out
             const scale = 1 + progress * 2;
             ripple.scale.set(scale, scale, scale);
             rippleMaterial.opacity = 0.7 * (1 - progress);
-            
+
             requestAnimationFrame(animate);
         } else {
             // Remove when animation is complete
             scene.remove(ripple);
         }
     };
-    
+
     animate();
 }
 
@@ -461,22 +461,22 @@ function handleHandMouseDown(position) {
         console.log("Cannot interact - game state prevents interaction");
         return false;
     }
-    
+
     console.log("Hand pinch detected at position:", position);
-    
+
     // Check for intersections with all chain links
     const allLinks = [];
-    
+
     if (!chains || chains.length === 0) {
         console.error("No chains found!");
         return false;
     }
-    
+
     console.log("Number of chains:", chains.length);
-    
+
     chains.forEach((chain, chainIndex) => {
         console.log(`Chain ${chainIndex} has ${chain.children.length} children`);
-        
+
         chain.children.forEach(link => {
             // Only include actual links, not end caps
             if (link.userData && link.userData.linkIndex !== undefined) {
@@ -485,37 +485,37 @@ function handleHandMouseDown(position) {
             }
         });
     });
-    
+
     console.log("Total links to check:", allLinks.length);
-    
+
     // Create a raycaster from the camera through the position
     const handRaycaster = new THREE.Raycaster();
     const screenPosition = position.clone().project(camera);
     handRaycaster.setFromCamera(new THREE.Vector2(screenPosition.x, screenPosition.y), camera);
-    
+
     const intersects = handRaycaster.intersectObjects(allLinks);
     console.log("Intersections found:", intersects.length);
-    
+
     if (intersects.length > 0) {
         console.log("Intersection detected with link");
         window.isDraggingChain = true;
         window.draggedLink = intersects[0].object;
         window.originalMaterial = window.draggedLink.material;
         window.draggedLink.material = selectedMaterial;
-        
+
         const chainIndex = window.draggedLink.userData.chainIndex;
         const linkIndex = window.draggedLink.userData.linkIndex;
         console.log("Dragging link from chain", chainIndex, "link index", linkIndex);
-        
+
         window.draggedBody = chainBodies[chainIndex][linkIndex];
-        
+
         // Convert intersection point to world coordinates
         const intersectionPoint = intersects[0].point;
         console.log("Intersection point:", intersectionPoint);
-        
+
         // Position joint body at the intersection point
         leftJointBody.position.copy(intersectionPoint);
-        
+
         // Create a distance constraint between leftJointBody and draggedBody
         window.dragConstraint = new CANNON.PointToPointConstraint(
             window.draggedBody,
@@ -524,21 +524,21 @@ function handleHandMouseDown(position) {
             new CANNON.Vec3(0, 0, 0),
             20 // Force strength
         );
-        
+
         world.addConstraint(window.dragConstraint);
         console.log("Constraint added");
-        
+
         // Add haptic feedback visual effect
         addHapticFeedback(intersectionPoint, 0.5);
-        
+
         // Update UI to show interaction
         if (document.getElementById('status')) {
             document.getElementById('status').textContent = `Grabbed link ${linkIndex} from chain ${chainIndex}`;
         }
-        
+
         return true;
     }
-    
+
     return false;
 }
 
@@ -555,7 +555,7 @@ function handleHandMouseMove(position) {
 // Handle hand release
 function handleHandMouseUp() {
     console.log("Hand release detected");
-    
+
     if (window.isDraggingChain) {
         console.log("Releasing dragged chain");
         // Reset dragging state
@@ -564,26 +564,26 @@ function handleHandMouseUp() {
             window.draggedLink = null;
             window.originalMaterial = null;
         }
-        
+
         // Remove constraint
         if (window.dragConstraint) {
             world.removeConstraint(window.dragConstraint);
             window.dragConstraint = null;
             console.log("Constraint removed");
         }
-        
+
         window.isDraggingChain = false;
         window.draggedBody = null;
-        
+
         // Check for knots and update score
         if (typeof calculateKnotFactor === 'function' && typeof updateScore === 'function') {
             try {
                 // Calculate knot factor for the first chain
                 const knotFactor = calculateKnotFactor(0);
-                
+
                 // Update the knot factor display
                 document.getElementById('knotFactor').textContent = knotFactor.toFixed(1);
-                
+
                 // Update the score based on the knot factor
                 // Only add points if the knot factor is significant
                 if (knotFactor > 10) {
@@ -596,12 +596,43 @@ function handleHandMouseUp() {
                 console.error("Error calculating knot factor:", error);
             }
         }
-        
+
         return true;
     }
-    
+
     return false;
 }
+
+// Add text-to-speech functionality
+let speechSynthesisInitialized = false;
+let bothHandsAnnounced = false;
+
+function speakText(text) {
+    // Check if the browser supports Speech Synthesis
+    if ('speechSynthesis' in window) {
+        // Create a new SpeechSynthesisUtterance
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Set properties (optional)
+        utterance.volume = 1.0; // 0 to 1
+        utterance.rate = 1.0;   // 0.1 to 10
+        utterance.pitch = 1.0;  // 0 to 2
+
+        // Speak the text
+        window.speechSynthesis.speak(utterance);
+
+        return true;
+    } else {
+        console.warn("Browser does not support Speech Synthesis");
+        return false;
+    }
+}
+
+// Initialize speech synthesis when the document is ready
+document.addEventListener('DOMContentLoaded', function () {
+    speechSynthesisInitialized = true;
+    console.log("Speech synthesis initialized");
+});
 
 // Process results from hand tracking
 mpHands.onResults(results => {
@@ -618,6 +649,10 @@ mpHands.onResults(results => {
     rightHandModel.group.visible = false;
 
     let statusText = "";
+
+    // Reset hand active states for this frame
+    hands.left.active = false;
+    hands.right.active = false;
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         // Process each detected hand
@@ -639,54 +674,57 @@ mpHands.onResults(results => {
             // Since we're inverting the camera, we'll use the correct mapping (no switch)
             const hand = handedness === 'Right' ? 'right' : 'left';
 
+            // Mark this hand as active
+            hands[hand].active = true;
+
             // Store all landmarks for better 3D calculations
             hands[hand].landmarks = landmarks;
-            
+
             // Calculate hand size for depth estimation
             const handSize = Math.sqrt(
                 Math.pow(landmarks[0].x - landmarks[9].x, 2) +
                 Math.pow(landmarks[0].y - landmarks[9].y, 2) +
                 Math.pow(landmarks[0].z - landmarks[9].z, 2)
             );
-            
+
             // Normalize hand size (smaller value = hand is further away)
             const normalizedHandSize = Math.max(0.05, Math.min(0.2, handSize));
             const depthFactor = (normalizedHandSize - 0.05) / 0.15; // 0 to 1 range
-            
+
             try {
                 // Update 3D hand model with active finger highlighting
                 const handModel = hand === 'left' ? leftHandModel : rightHandModel;
                 const handPositions = updateHandModel(handModel, landmarks, depthFactor, hands[hand].activeFingerIndex);
-                
+
                 // Use index finger tip (landmark 8) and thumb tip (landmark 4) for interaction
                 hands[hand].indexFingerTip = landmarks[8];
                 hands[hand].thumbTip = landmarks[4];
-                
+
                 // Check for pinching between thumb and index finger
                 const thumbTip = handModel.joints[4].position.clone();
                 const indexTip = handModel.joints[8].position.clone();
                 const pinchDistance = thumbTip.distanceTo(indexTip);
                 const isPinching = pinchDistance < 1.2; // Pinch threshold
-                
+
                 // Get 3D positions for interaction
                 const pinchPosition = new THREE.Vector3().addVectors(thumbTip, indexTip).multiplyScalar(0.5);
-                
+
                 // Update status with 3D position information
                 statusText += `${hand.charAt(0).toUpperCase() + hand.slice(1)} hand detected: (${pinchPosition.x.toFixed(2)}, ${pinchPosition.y.toFixed(2)}, ${pinchPosition.z.toFixed(2)})\n`;
                 statusText += `Pinching: ${isPinching ? 'YES' : 'NO'}\n`;
-                
+
                 // Highlight pinching fingers
                 if (isPinching) {
                     handModel.joints[4].material.emissive.set(0xffff00);
                     handModel.joints[4].material.emissiveIntensity = 0.8;
                     handModel.joints[8].material.emissive.set(0xffff00);
                     handModel.joints[8].material.emissiveIntensity = 0.8;
-                    
+
                     // Handle pinch interaction
                     if (!hands[hand].isDragging) {
                         // Only trigger mousedown if not already dragging
                         const success = handleHandMouseDown(pinchPosition);
-                        
+
                         if (success && window.isDraggingChain) {
                             hands[hand].isDragging = true;
                             window.activeHand = hand;
@@ -707,18 +745,37 @@ mpHands.onResults(results => {
         }
 
         isHandTracking = true;
+
+        // Check if both hands are detected
+        if (hands.left.active && hands.right.active && !bothHandsAnnounced && speechSynthesisInitialized) {
+            // Only announce if the game hasn't started yet
+            if (typeof gameStarted !== 'undefined' && !gameStarted) {
+                console.log("Both hands detected - announcing via TTS");
+                speakText("Both hands detected. Please say a difficulty.");
+                bothHandsAnnounced = true;
+
+                // Add a visual indicator for the announcement
+                statusText += "VOICE COMMAND: Please say a difficulty level\n";
+            }
+        } else if (!(hands.left.active && hands.right.active)) {
+            // Reset announcement flag when both hands are no longer detected
+            bothHandsAnnounced = false;
+        }
     } else {
         statusText = "No hands detected";
         isHandTracking = false;
-        
+
         // Release any constraints if hands are no longer detected
         if (window.isDraggingChain && window.activeHand) {
             handleHandMouseUp();
-            
+
             if (hands.left.isDragging) hands.left.isDragging = false;
             if (hands.right.isDragging) hands.right.isDragging = false;
             window.activeHand = null;
         }
+
+        // Reset announcement state when no hands are detected
+        bothHandsAnnounced = false;
     }
 
     statusElement.textContent = statusText;
@@ -756,7 +813,7 @@ camera2.start().then(() => {
     // Invert the camera display
     document.getElementById('videoElement').style.transform = 'scaleX(-1)';
     document.getElementById('handCanvas').style.transform = 'scaleX(-1)';
-    
+
     // Initialize debug visualization
     initDebugVisualization();
 }).catch(err => {

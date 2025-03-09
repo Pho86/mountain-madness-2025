@@ -204,6 +204,7 @@ function stopContinuousVoiceRecognition() {
         // Convert blob to base64
         const base64Data = await blobToBase64(audioBlob);
 
+        // const response = await fetch("https://mountain-backend.vercel.app/fake", {
         const response = await fetch("https://mountain-backend.vercel.app/transcribe", {
             method: "POST",
             headers: {

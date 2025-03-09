@@ -67,6 +67,11 @@ function startGame() {
     gameOver = false;
     score = 0;
     document.getElementById('score').textContent = score;
+    
+    // Reset the hand announcement flag if it exists
+    if (typeof bothHandsAnnounced !== 'undefined') {
+        bothHandsAnnounced = true; // Prevent announcing after game starts
+    }
 
     // Make UI elements visible
     document.getElementById('timer-container').style.opacity = 1;
