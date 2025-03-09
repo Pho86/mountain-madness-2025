@@ -16,16 +16,20 @@ An interactive 3D physics simulation that allows users to manipulate ropes using
 The project has been organized into a modular structure for better maintainability:
 
 ```
-├── index.html          # Main HTML file
+├── index.html           # Main HTML file: entry point for the web application, linking to CSS, JS files
+├── backend/
+│   ├── server.js        # Express server: contains the Express app setup and routes for handling HTTP requests
+│   ├── vercel.json      # Vercel configuration file: used for deployment settings when deploying to Vercel, such as routes and environment variables
+│   └── .env             # Environment variables for Express: stores sensitive data like API keys, database credentials, etc. (never commit to version control)
 ├── css/
-│   └── main.css        # All styles for the application
+│   └── main.css         # All styles for the application: contains styling rules for the page layout, elements, etc.
 ├── js/
-│   ├── scene.js        # 3D scene setup and rendering
-│   ├── rope.js         # Rope physics and interaction
-│   ├── game.js         # Game logic, timer, and scoring
-│   ├── handtracking.js # Hand tracking functionality
-│   ├── voice.js        # Voice recognition system
-│   └── ui.js           # UI event handlers
+│   ├── scene.js         # 3D scene setup and rendering: sets up the 3D environment, camera, and objects using a library like Three.js
+│   ├── rope.js          # Rope physics and interaction: contains the logic for rope movement and physics simulation
+│   ├── game.js          # Game logic, timer, and scoring: controls the gameplay, tracks time, and manages scores
+│   ├── handtracking.js  # Hand tracking functionality: handles capturing and tracking hand movements, possibly using a library like TensorFlow.js
+│   ├── voice.js         # Voice recognition system: implements voice commands and speech-to-text functionality
+│   └── ui.js            # UI event handlers: manages user interface interactions, such as button clicks, form submissions, etc.
 ```
 
 ## Voice Commands
