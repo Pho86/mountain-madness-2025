@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addChain').addEventListener('click', () => {
         const x = (Math.random() - 0.5) * 10;
         const z = (Math.random() - 0.5) * 10;
-        createChain(new THREE.Vector3(x, 10, z));
+        createChain(new THREE.Vector3(x, 15, z));
     });
 
     document.getElementById('toggleGravity').addEventListener('click', () => {
@@ -48,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add keyboard shortcut for toggling menu
     window.addEventListener('keydown', (event) => {
         if (event.key.toLowerCase() === 'm') {
+            // Don't toggle menu if game is over
+            if (gameOver) {
+                console.log("Menu toggle blocked: game is over");
+                return;
+            }
             toggleControlsMenu();
         } else if (event.key.toLowerCase() === 'd') {
             // Toggle debug mode for voice recognition

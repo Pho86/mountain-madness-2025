@@ -3,8 +3,8 @@ const chains = [];
 const chainBodies = [];
 const linkRadius = 0.3; // Thicker for better visibility
 const linkHeight = 0.5; // Slightly taller segments
-const numLinks = 20;    // Number of links in each chain
-const chainDistance = 1.0; // Distance between links
+const numLinks = 100;   // Increased from 20 to 100 to match the other implementation
+const chainDistance = -5; // Reduced from 1.0 to -5 to match the other implementation
 
 // Knot measurement configuration
 const KNOT_CONFIG = {
@@ -24,15 +24,15 @@ const KNOT_CONFIG = {
 // Create visual indicators for the measurement process
 let measurementIndicators = [];
 
-// Materials
+
 const chainMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd2b48c, // Tan/beige color like rope
+    color: 0xC2B280, // Darker beige color for the rope
     roughness: 0.9,  // More rough texture for rope
     metalness: 0.1   // Less metallic, more fabric-like
 });
 
 const selectedMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff5555,
+    color: 0xA68A6A, // Darker beige color for selected links
     roughness: 0.4,
     metalness: 0.8
 });
@@ -56,7 +56,7 @@ function createChain(position) {
     const bodies = [];
     
     const physicalMaterial = new CANNON.Material();
-    physicalMaterial.friction = 0.5;  // More friction for rope
+    physicalMaterial.friction = 0.5;  // More friction for better handling
     
     for (let i = 0; i < numLinks; i++) {
         // Three.js geometry - use cylinder with more segments for smoother rope
@@ -127,11 +127,7 @@ function addRopeEnds(chain, bodies) {
     const startCapGeometry = new THREE.SphereGeometry(linkRadius * 1.2, 16, 16);
     const endCapGeometry = new THREE.SphereGeometry(linkRadius * 1.2, 16, 16);
     
-    const capMaterial = new THREE.MeshStandardMaterial({
-        color: 0xd2b48c, // Match rope color
-        roughness: 0.7,
-        metalness: 0.3
-    });
+    const capMaterial = cellShadingMaterial.clone();
     
     const startCap = new THREE.Mesh(startCapGeometry, capMaterial);
     startCap.castShadow = true;
@@ -150,7 +146,8 @@ function addRopeEnds(chain, bodies) {
 function resetRope() {
     // Reset first chain position
     for (let i = 0; i < chainBodies[0].length; i++) {
-        chainBodies[0][i].position.set(0, 10 - i * chainDistance, 0);
+        // Use a higher starting position to accommodate the longer rope
+        chainBodies[0][i].position.set(0, 15 - i * chainDistance, 0);
         chainBodies[0][i].velocity.set(0, 0, 0);
         chainBodies[0][i].angularVelocity.set(0, 0, 0);
         chainBodies[0][i].quaternion.set(0, 0, 0, 1);
@@ -323,10 +320,13 @@ function detectKnots() {
         const knotThreshold = linkRadius * 2; // Distance threshold for detecting knots
         
         // Check for crossings between non-adjacent links
-        for (let i = 0; i < numLinks; i++) {
-            for (let j = i + 3; j < numLinks; j++) {
+        // Only check a subset of links for performance with the longer rope
+        const checkStep = 3; // Check every 3rd link
+        for (let i = 0; i < numLinks; i += checkStep) {
+            // Start checking from links that are at least 10 links away
+            for (let j = i + 10; j < numLinks; j += checkStep) {
                 // Skip links that are too close in the chain
-                if (j - i <= 3) continue;
+                if (j - i <= 10) continue;
                 
                 // Calculate distance between non-adjacent links
                 const distance = links[i].position.distanceTo(links[j].position);
@@ -694,4 +694,4 @@ function calculateKnotRating() {
 }
 
 // Add initial chain
-createChain(new THREE.Vector3(0, 10, 0)); 
+createChain(new THREE.Vector3(0, 15, 0)); 

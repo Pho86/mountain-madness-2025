@@ -1,7 +1,3 @@
-// Initialize Three.js Scene
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x282c34);
-
 // Configuration parameters
 const CONFIG = {
     floorDistance: -10,  // Distance of floor from origin
@@ -10,9 +6,45 @@ const CONFIG = {
     angularDamping: 0.5  // Angular damping factor
 };
 
+// Cell shading setup
+const cellShader = {
+    uniforms: {
+        lightDirection: { value: new THREE.Vector3(1, 1, 1).normalize() }
+    },
+    vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform vec3 lightDirection;
+        varying vec3 vNormal;
+        void main() {
+            float intensity = dot(vNormal, lightDirection);
+            if (intensity > 0.95) intensity = 1.0;
+            else if (intensity > 0.5) intensity = 0.6;
+            else if (intensity > 0.25) intensity = 0.4;
+            else intensity = 0.2;
+            gl_FragColor = vec4(vec3(0.3, 0.5, 0.8) * intensity, 1.0);  // Blue color
+        }
+    `
+};
+
+const cellShadingMaterial = new THREE.ShaderMaterial({
+    uniforms: cellShader.uniforms,
+    vertexShader: cellShader.vertexShader,
+    fragmentShader: cellShader.fragmentShader
+});
+
+// Initialize Three.js Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x282c34);
+
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 5, 15);
+camera.position.set(0, 10, 20);
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });

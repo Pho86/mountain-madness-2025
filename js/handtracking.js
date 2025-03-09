@@ -176,6 +176,27 @@ function releaseHandConstraints(hand) {
 
 // Function to interact with the scene using finger position
 function interactWithSceneUsingFinger(hand, x, y, z) {
+    // Don't interact if game is over or not started
+    if (!canInteract()) {
+        // Still show the finger representation
+        const fingerMesh = hand === 'left' ? leftFingerMesh : rightFingerMesh;
+        fingerMesh.visible = true;
+        
+        // Create a ray from the camera through the finger position
+        const fingerRaycaster = hand === 'left' ? leftFingerRaycaster : rightFingerRaycaster;
+        const invertedX = -x;
+        fingerRaycaster.setFromCamera(new THREE.Vector2(invertedX, y), camera);
+        
+        // Calculate 3D position along the ray
+        const fingerPosition = new THREE.Vector3();
+        fingerRaycaster.ray.at(10, fingerPosition); // Fixed distance when not interacting
+        
+        // Update the visual representation of the finger
+        fingerMesh.position.copy(fingerPosition);
+        
+        return;
+    }
+    
     // Get the appropriate objects for this hand
     const fingerMesh = hand === 'left' ? leftFingerMesh : rightFingerMesh;
     const jointBody = hand === 'left' ? leftJointBody : rightJointBody;
@@ -190,15 +211,9 @@ function interactWithSceneUsingFinger(hand, x, y, z) {
     // Create a ray from the camera through the finger position
     fingerRaycaster.setFromCamera(new THREE.Vector2(invertedX, y), camera);
 
-    // Adjust the z value to make it behave as expected
-    // MediaPipe's z value decreases as the hand moves closer to the camera
-    // We want the distance to increase as the hand moves closer to the camera
-    const adjustedZ = 1 - z; // Invert the z value
-
-    // Map the adjusted z value to a distance range (e.g., 5 to 15 units)
-    const minDistance = 5;
-    const maxDistance = 15;
-    const distance = minDistance + (adjustedZ * (maxDistance - minDistance));
+    // Get distance factor from z value (further = more distance)
+    // Map z from roughly [-0.1, 0.1] to distance of [5, 15]
+    const distance = -((z + 0.3) / 0.6) * 20 + 5;
 
     // Calculate 3D position along the ray
     const fingerPosition = new THREE.Vector3();

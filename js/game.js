@@ -74,6 +74,10 @@ function startGame() {
     const gamePrompt = document.getElementById('game-prompt');
     gamePrompt.innerHTML = `<span class="highlight">Time to tie knots!</span> Current difficulty: ${currentDifficulty.label}`;
 
+    // Restore normal voice indicator message
+    const voiceIndicator = document.getElementById('voice-indicator');
+    voiceIndicator.innerHTML = '<div id="voice-indicator-icon"></div><span>Say <span class="command">"restart"</span> or <span class="command">"menu"</span></span>';
+
     // Reset timer based on difficulty
     timeLeft = currentDifficulty.time;
     updateTimerDisplay();
@@ -208,6 +212,10 @@ function endGame() {
     // Update game prompt
     const gamePrompt = document.getElementById('game-prompt');
     gamePrompt.innerHTML = 'Game over! <span class="highlight">Say "restart"</span> or click the restart button to play again.';
+
+    // Update voice indicator to show only restart command is available
+    const voiceIndicator = document.getElementById('voice-indicator');
+    voiceIndicator.innerHTML = '<div id="voice-indicator-icon"></div><span>Say <span class="command">"restart"</span> to play again</span>';
 
     // Show restart button
     const restartButton = document.getElementById('restart-button');
