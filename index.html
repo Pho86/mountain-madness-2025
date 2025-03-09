@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Rope Physics with Dual Hand Tracking</title>
+    <title>Knot Madness</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -15,11 +15,12 @@
 
 <body>
     <div id="controls">
-        <h3>3D Rope Physics with Dual Hand Tracking</h3>
-        <button id="addChain">Add Rope</button>
+        <h3>Knot Madness</h3>
+        <button id="addChain">Add Knot</button>
         <button id="toggleGravity">Toggle Gravity</button>
-        <button id="reset">Reset Rope</button>
-        <button id="measureKnot">Measure Knot</button>
+        <button id="reset">Reset Knot</button>
+        <button id="measureKnot" style="background: #ff9800;">Measure Knot</button>
+        <button id="resetCamera" style="background: #2196F3;">Reset Camera</button>
         <div id="tangleMetrics" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;">
             <p>Tangle Metrics:</p>
             <p>Complexity: <span id="tangleComplexity">0</span></p>
@@ -87,6 +88,7 @@
     <script src="js/rope.js"></script>
     <script src="js/game.js"></script>
     <script src="js/handtracking.js"></script>
+    <script src="js/mouse.js"></script>
     <script src="js/voice.js"></script>
     <script src="js/ui.js"></script>
     
@@ -108,6 +110,14 @@
         // Start voice recognition
         document.addEventListener('DOMContentLoaded', () => {
             startContinuousVoiceRecognition();
+        });
+        
+        // Add event listener for Reset Camera button
+        document.getElementById('resetCamera').addEventListener('click', () => {
+            // Reset camera to the initial position
+            camera.position.set(0, 5, 15);
+            // Reset camera rotation to look at the center of the scene
+            camera.lookAt(scene.position);
         });
     </script>
 </body>

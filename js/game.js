@@ -10,7 +10,7 @@ let knotCheckInterval = 500; // Check for knots every 500ms
 // Difficulty settings
 const difficulties = {
     easy: {
-        time: 120, // 2 minutes
+        time: 999, // minutes
         label: "Easy",
         scoreThresholds: {
             poor: 5,
@@ -156,19 +156,175 @@ function endGame() {
     clearInterval(timerInterval);
     gameOver = true;
 
+    // Measure the final knot before showing game over screen
+    if (!isMeasuringKnot) {
+        // Set a flag to indicate this is the final measurement
+        const isFinalMeasurement = true;
+        
+        // Measure the knot and get the final score
+        measureFinalKnot(() => {
+            // This callback runs after the knot measurement is complete
+            
+            // Show game over container
+            const gameOverContainer = document.getElementById('game-over-container');
+            gameOverContainer.style.display = 'flex';
+            
+            // Update final score
+            document.getElementById('final-score').textContent = score;
+            
+            // Determine performance message based on score and difficulty
+            let performanceMessage = '';
+            let performanceColor = '';
+            
+            const thresholds = currentDifficulty.scoreThresholds;
+            
+            if (score < thresholds.poor) {
+                performanceMessage = "Keep practicing!";
+                performanceColor = "#FF6347"; // Tomato red
+            } else if (score < thresholds.average) {
+                performanceMessage = "Not bad!";
+                performanceColor = "#FFA500"; // Orange
+            } else if (score < thresholds.good) {
+                performanceMessage = "Good job!";
+                performanceColor = "#4682B4"; // Steel blue
+            } else if (score < thresholds.excellent) {
+                performanceMessage = "Great work!";
+                performanceColor = "#32CD32"; // Lime green
+            } else {
+                performanceMessage = "Excellent!";
+                performanceColor = "#FFD700"; // Gold
+            }
+            
+            // Add performance message to game over screen
+            let performanceElement = document.getElementById('performance-message');
+            if (!performanceElement) {
+                performanceElement = document.createElement('p');
+                performanceElement.id = 'performance-message';
+                gameOverContainer.appendChild(performanceElement);
+            }
+            
+            performanceElement.textContent = performanceMessage;
+            performanceElement.style.color = performanceColor;
+            performanceElement.style.fontWeight = 'bold';
+            performanceElement.style.fontSize = '1.5em';
+            
+            // Add difficulty info
+            let difficultyElement = document.getElementById('difficulty-info');
+            if (!difficultyElement) {
+                difficultyElement = document.createElement('p');
+                difficultyElement.id = 'difficulty-info';
+                gameOverContainer.appendChild(difficultyElement);
+            }
+            
+            difficultyElement.textContent = `Difficulty: ${currentDifficulty.label}`;
+            
+            // Update game prompt
+            const gamePrompt = document.getElementById('game-prompt');
+            gamePrompt.innerHTML = 'Game over! <span class="highlight">Say "restart"</span> or click the restart button to play again.';
+            
+            // Update voice indicator to show only restart command is available
+            const voiceIndicator = document.getElementById('voice-indicator');
+            voiceIndicator.innerHTML = '<div id="voice-indicator-icon"></div><span>Say <span class="command">"restart"</span> to play again</span>';
+            
+            // Show restart button
+            const restartButton = document.getElementById('restart-button');
+            if (restartButton) {
+                restartButton.style.display = 'block';
+            }
+        });
+    } else {
+        // If already measuring, just show the game over screen
+        showGameOverScreen();
+    }
+}
+
+// Function to measure the final knot and then run a callback
+function measureFinalKnot(callback) {
+    const chainIndex = 0;
+    if (!chainBodies[chainIndex]) {
+        // If no chain exists, just run the callback
+        callback();
+        return;
+    }
+
+    isMeasuringKnot = true;
+    knotMeasurementStartTime = Date.now();
+
+    // Store original state and physics properties
+    const originalPositions = [];
+    const originalVelocities = [];
+    const originalAngularVelocities = [];
+    const originalQuaternions = [];
+
+    const bodies = chainBodies[chainIndex];
+    for (let i = 0; i < bodies.length; i++) {
+        originalPositions.push(bodies[i].position.clone());
+        originalVelocities.push(bodies[i].velocity.clone());
+        originalAngularVelocities.push(bodies[i].angularVelocity.clone());
+        originalQuaternions.push(bodies[i].quaternion.clone());
+
+        // Increase damping during measurement
+        bodies[i].linearDamping = KNOT_MEASUREMENT_CONFIG.dampingDuringStretch;
+        bodies[i].angularDamping = KNOT_MEASUREMENT_CONFIG.dampingDuringStretch;
+    }
+
+    // Store original gravity and physics properties
+    const originalGravity = world.gravity.clone();
+    world.gravity.set(0, 0, 0);
+
+    // Set a timeout to calculate results and restore the chain
+    setTimeout(() => {
+        // Calculate knot metrics
+        const knottiness = calculateKnotFactor(chainIndex);
+        document.getElementById('knotRating').textContent = knottiness.toFixed(1) + '%';
+
+        // Update the game score based on knot complexity
+        if (typeof updateGameScore === 'function') {
+            // Convert knottiness to a ratio (0-1) for the scoring system
+            const lengthRatio = 1 - (knottiness / 100);
+            updateGameScore(lengthRatio, 0);
+        }
+
+        // Begin restoration process
+        setTimeout(() => {
+            // Restore original physics properties
+            world.gravity.copy(originalGravity);
+            
+            // Restore original chain state and properties
+            for (let i = 0; i < bodies.length; i++) {
+                bodies[i].position.copy(originalPositions[i]);
+                bodies[i].velocity.copy(originalVelocities[i]);
+                bodies[i].angularVelocity.copy(originalAngularVelocities[i]);
+                bodies[i].quaternion.copy(originalQuaternions[i]);
+                
+                // Restore original damping
+                bodies[i].linearDamping = CONFIG.damping;
+                bodies[i].angularDamping = CONFIG.angularDamping;
+            }
+
+            isMeasuringKnot = false;
+            
+            // Run the callback after measurement is complete
+            callback();
+        }, KNOT_MEASUREMENT_CONFIG.recoveryTime / 2); // Use shorter recovery time for game end
+    }, KNOT_MEASUREMENT_CONFIG.measurementDuration / 2); // Use shorter measurement time for game end
+}
+
+// Function to show the game over screen
+function showGameOverScreen() {
     // Show game over container
     const gameOverContainer = document.getElementById('game-over-container');
     gameOverContainer.style.display = 'flex';
-
+    
     // Update final score
     document.getElementById('final-score').textContent = score;
-
+    
     // Determine performance message based on score and difficulty
     let performanceMessage = '';
     let performanceColor = '';
-
+    
     const thresholds = currentDifficulty.scoreThresholds;
-
+    
     if (score < thresholds.poor) {
         performanceMessage = "Keep practicing!";
         performanceColor = "#FF6347"; // Tomato red
@@ -185,7 +341,7 @@ function endGame() {
         performanceMessage = "Excellent!";
         performanceColor = "#FFD700"; // Gold
     }
-
+    
     // Add performance message to game over screen
     let performanceElement = document.getElementById('performance-message');
     if (!performanceElement) {
@@ -193,12 +349,12 @@ function endGame() {
         performanceElement.id = 'performance-message';
         gameOverContainer.appendChild(performanceElement);
     }
-
+    
     performanceElement.textContent = performanceMessage;
     performanceElement.style.color = performanceColor;
     performanceElement.style.fontWeight = 'bold';
     performanceElement.style.fontSize = '1.5em';
-
+    
     // Add difficulty info
     let difficultyElement = document.getElementById('difficulty-info');
     if (!difficultyElement) {
@@ -206,17 +362,17 @@ function endGame() {
         difficultyElement.id = 'difficulty-info';
         gameOverContainer.appendChild(difficultyElement);
     }
-
+    
     difficultyElement.textContent = `Difficulty: ${currentDifficulty.label}`;
-
+    
     // Update game prompt
     const gamePrompt = document.getElementById('game-prompt');
     gamePrompt.innerHTML = 'Game over! <span class="highlight">Say "restart"</span> or click the restart button to play again.';
-
+    
     // Update voice indicator to show only restart command is available
     const voiceIndicator = document.getElementById('voice-indicator');
     voiceIndicator.innerHTML = '<div id="voice-indicator-icon"></div><span>Say <span class="command">"restart"</span> to play again</span>';
-
+    
     // Show restart button
     const restartButton = document.getElementById('restart-button');
     if (restartButton) {
@@ -276,6 +432,41 @@ function updateScore(points) {
         scoreElement.style.color = 'white';
     }, 300);
 }
+
+// Function to update the game score based on knot complexity
+function updateGameScore(lengthRatio, straightness) {
+    if (!gameStarted || gameOver) return;
+    
+    // Calculate a score based on how knotted the rope is
+    // Lower length ratio = more knotted = higher score
+    let knotScore = 0;
+    
+    if (lengthRatio < 0.5) {
+        // Very knotted - highest score
+        knotScore = 100;
+    } else if (lengthRatio < 0.7) {
+        // Knotted - good score
+        knotScore = 50;
+    } else if (lengthRatio < 0.9) {
+        // Slightly knotted - modest score
+        knotScore = 25;
+    } else {
+        // Minimal knots - low score
+        knotScore = 10;
+    }
+    
+    // Add bonus points for complexity (more crossings)
+    const complexityBonus = Math.floor(currentCrossings * 2);
+    
+    // Calculate final score
+    const finalScore = knotScore + complexityBonus;
+    
+    // Update the score
+    updateScore(finalScore);
+}
+
+// Expose the updateGameScore function to the window object
+window.updateGameScore = updateGameScore;
 
 // Set up difficulty buttons
 document.addEventListener('DOMContentLoaded', () => {

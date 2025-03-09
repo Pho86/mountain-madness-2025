@@ -44,7 +44,9 @@ scene.background = new THREE.Color(0x282c34);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 10, 20);
+// Position camera higher and angled down to better view the rope
+camera.position.set(0, 25, 20);
+camera.lookAt(0, 0, 0); // Look at the origin where the rope is anchored
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -169,48 +171,52 @@ window.addEventListener('resize', () => {
 const timeStep = 1 / 60;
 function animate() {
     requestAnimationFrame(animate);
-
+    
+    // Update frame counter
+    frameCount++;
+    
+    // Process knot measurement if active
+    if (KNOT_CONFIG && KNOT_CONFIG.isActive) {
+        try {
+            // Call the measurement step function for the first chain
+            measureKnotStep(0, KNOT_CONFIG.originalGravity);
+        } catch (error) {
+            console.error("Error in knot measurement:", error);
+            // End measurement on error
+            if (typeof endKnotMeasurement === 'function') {
+                endKnotMeasurement(false, KNOT_CONFIG.originalGravity);
+            }
+        }
+    }
+    
     // Update physics
     world.step(timeStep);
-
+    
     // Update chain positions based on physics
     for (let i = 0; i < chains.length; i++) {
         for (let j = 0; j < chains[i].children.length; j++) {
             const link = chains[i].children[j];
             
-            // Skip end caps if they exist
-            if (j >= numLinks) continue;
+            // Skip links without userData (like end caps)
+            if (!link.userData || link.userData.linkIndex === undefined) {
+                continue;
+            }
             
-            const body = chainBodies[i][j];
+            const body = chainBodies[i][link.userData.linkIndex];
+            
+            // Skip if body doesn't exist
+            if (!body) {
+                continue;
+            }
             
             link.position.copy(body.position);
             link.quaternion.copy(body.quaternion);
         }
-        
-        // Update end caps positions if they exist
-        if (chains[i].children.length > numLinks) {
-            const startCap = chains[i].children[numLinks];
-            const endCap = chains[i].children[numLinks + 1];
-
-            // Position start cap at the top of the first link
-            startCap.position.copy(chains[i].children[0].position);
-            startCap.position.y += linkHeight / 2;
-            startCap.quaternion.copy(chains[i].children[0].quaternion);
-
-            // Position end cap at the bottom of the last link
-            const lastLink = chains[i].children[numLinks - 1];
-            endCap.position.copy(lastLink.position);
-            endCap.position.y -= linkHeight / 2;
-            endCap.quaternion.copy(lastLink.quaternion);
-        }
     }
-
-    // Apply tangling forces for rope-like behavior
+    
+    // Apply tangling forces
     applyTanglingForces();
-
-    // Check for knots
-    detectKnots();
-
+    
     // Render scene
     renderer.render(scene, camera);
 }
@@ -220,30 +226,36 @@ let isDraggingCamera = false;
 let previousCameraPosition = { x: 0, y: 0 };
 const cameraDistance = camera.position.length();
 
+// Handle camera rotation
 function handleCameraRotation(event) {
     const deltaMove = {
         x: event.clientX - previousCameraPosition.x,
         y: event.clientY - previousCameraPosition.y
     };
-
-    // Rotate camera
+    
+    // Rotate camera horizontally around the scene center
     const rotationSpeed = 0.01;
-    camera.position.x = camera.position.x * Math.cos(deltaMove.x * rotationSpeed) + camera.position.z * Math.sin(deltaMove.x * rotationSpeed);
-
-    camera.position.z = -camera.position.x * Math.sin(deltaMove.x * rotationSpeed) + camera.position.z * Math.cos(deltaMove.x * rotationSpeed);
-
-    // Limit vertical rotation
-    const upDown = deltaMove.y * rotationSpeed;
-    const currentAngle = Math.acos(camera.position.y / cameraDistance);
-    const newAngle = Math.max(0.1, Math.min(Math.PI - 0.1, currentAngle + upDown));
-
-    camera.position.y = cameraDistance * Math.cos(newAngle);
-    const radius = cameraDistance * Math.sin(newAngle);
-    const ratio = radius / Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z);
-    camera.position.x *= ratio;
-    camera.position.z *= ratio;
-
-    camera.lookAt(scene.position);
+    const horizontalRotation = deltaMove.x * rotationSpeed;
+    
+    // Get current camera position in spherical coordinates
+    const radius = camera.position.length();
+    let theta = Math.atan2(camera.position.x, camera.position.z);
+    let phi = Math.acos(camera.position.y / radius);
+    
+    // Update theta (horizontal rotation)
+    theta -= horizontalRotation;
+    
+    // Limit vertical rotation to maintain a downward angle
+    phi = Math.max(Math.PI * 0.2, Math.min(Math.PI * 0.8, phi + deltaMove.y * rotationSpeed));
+    
+    // Convert back to Cartesian coordinates
+    camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = radius * Math.cos(phi);
+    camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+    
+    // Look at the scene center
+    camera.lookAt(0, 0, 0);
+    
     previousCameraPosition = { x: event.clientX, y: event.clientY };
 }
 
@@ -358,7 +370,30 @@ function applyTanglingForces() {
     if (frameCount % TANGLE_CONFIG.updateInterval === 0) {
         currentTangleComplexity = Math.min(1, complexity / TANGLE_CONFIG.maxCrossings);
         currentCrossings = crossings;
+
+        document.getElementById('tangleComplexity').textContent = 
+            (currentTangleComplexity * 100).toFixed(1) + '%';
+        document.getElementById('tangleCrossings').textContent = currentCrossings;
     }
     
+    // Increment frame counter
     frameCount++;
-} 
+}
+
+// Function to reset camera to default position
+function resetCamera() {
+    camera.position.set(0, 25, 20);
+    camera.lookAt(0, 0, 0);
+}
+
+// Add reset camera button to UI
+document.addEventListener('DOMContentLoaded', () => {
+    const controls = document.getElementById('controls');
+    if (controls) {
+        const resetCameraButton = document.createElement('button');
+        resetCameraButton.id = 'resetCamera';
+        resetCameraButton.textContent = 'Reset Camera';
+        resetCameraButton.addEventListener('click', resetCamera);
+        controls.appendChild(resetCameraButton);
+    }
+}); 

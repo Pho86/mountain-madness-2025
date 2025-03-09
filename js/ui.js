@@ -35,14 +35,75 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add event listener for the measure knot button
     document.getElementById('measureKnot').addEventListener('click', () => {
-        if (KNOT_CONFIG.isActive) {
-            // If already measuring, cancel it
-            endKnotMeasurement(false);
-            return;
+        if (isMeasuringKnot) return;
+
+        const chainIndex = 0;
+        if (!chainBodies[chainIndex]) return;
+
+        isMeasuringKnot = true;
+        knotMeasurementStartTime = Date.now();
+
+        // Store original state and physics properties
+        const originalPositions = [];
+        const originalVelocities = [];
+        const originalAngularVelocities = [];
+        const originalQuaternions = [];
+
+        const bodies = chainBodies[chainIndex];
+        for (let i = 0; i < bodies.length; i++) {
+            originalPositions.push(bodies[i].position.clone());
+            originalVelocities.push(bodies[i].velocity.clone());
+            originalAngularVelocities.push(bodies[i].angularVelocity.clone());
+            originalQuaternions.push(bodies[i].quaternion.clone());
+
+            // Increase damping during measurement
+            bodies[i].linearDamping = KNOT_MEASUREMENT_CONFIG.dampingDuringStretch;
+            bodies[i].angularDamping = KNOT_MEASUREMENT_CONFIG.dampingDuringStretch;
         }
-        
-        // Start the measurement process
-        startKnotMeasurement();
+
+        // Store original gravity and physics properties
+        const originalGravity = world.gravity.clone();
+        world.gravity.set(0, 0, 0);
+
+        const button = document.getElementById('measureKnot');
+        button.textContent = "Measuring...";
+        button.disabled = true;
+
+        // Set a timeout to calculate results and restore the chain
+        setTimeout(() => {
+            // Calculate knot metrics
+            const knottiness = calculateKnotFactor(chainIndex);
+            document.getElementById('knotRating').textContent = knottiness.toFixed(1) + '%';
+
+            // Update the game score based on knot complexity
+            if (typeof updateGameScore === 'function') {
+                // Convert knottiness to a ratio (0-1) for the scoring system
+                const lengthRatio = 1 - (knottiness / 100);
+                updateGameScore(lengthRatio, 0);
+            }
+
+            // Begin restoration process
+            setTimeout(() => {
+                // Restore original physics properties
+                world.gravity.copy(originalGravity);
+                
+                // Restore original chain state and properties
+                for (let i = 0; i < bodies.length; i++) {
+                    bodies[i].position.copy(originalPositions[i]);
+                    bodies[i].velocity.copy(originalVelocities[i]);
+                    bodies[i].angularVelocity.copy(originalAngularVelocities[i]);
+                    bodies[i].quaternion.copy(originalQuaternions[i]);
+                    
+                    // Restore original damping
+                    bodies[i].linearDamping = CONFIG.damping;
+                    bodies[i].angularDamping = CONFIG.angularDamping;
+                }
+
+                isMeasuringKnot = false;
+                button.textContent = "Measure Knot";
+                button.disabled = false;
+            }, KNOT_MEASUREMENT_CONFIG.recoveryTime);
+        }, KNOT_MEASUREMENT_CONFIG.measurementDuration);
     });
 
     // Add keyboard shortcut for toggling menu
@@ -54,11 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             toggleControlsMenu();
-        } else if (event.key.toLowerCase() === 'd') {
-            // Toggle debug mode for voice recognition
-            debugMode = !debugMode;
-            console.log(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`);
-        }
+        } 
     });
     
     // Update tangle metrics display
