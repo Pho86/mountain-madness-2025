@@ -356,14 +356,14 @@ function initDebugVisualization() {
     scene.add(debugText);
     
     // Add debug toggle to UI
-    const controls = document.getElementById('controls');
-    const debugButton = document.createElement('button');
-    debugButton.id = 'toggleDebug';
-    debugButton.textContent = 'Toggle';
-    debugButton.addEventListener('click', toggleDebugView);
-    controls.appendChild(debugButton);
+    // const controls = document.getElementById('controls');
+    // const debugButton = document.createElement('button');
+    // debugButton.id = 'toggleDebug';
+    // debugButton.textContent = 'Toggle';
+    // debugButton.addEventListener('click', toggleDebugView);
+    // controls.appendChild(debugButton);
     
-    console.log('Debug visualization initialized');
+    // console.log('Debug visualization initialized');
 }
 
 // Toggle debug visualization

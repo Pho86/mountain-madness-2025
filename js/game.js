@@ -10,7 +10,7 @@ let knotCheckInterval = 500; // Check for knots every 500ms
 // Difficulty settings
 const difficulties = {
     easy: {
-        time: 999, // minutes
+        time: 9999, // minutes
         label: "Easy",
         scoreThresholds: {
             poor: 5,

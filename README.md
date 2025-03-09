@@ -1,4 +1,4 @@
-# 3D Rope Physics with Dual Hand Tracking
+# 3D Knot Madness
 
 An interactive 3D physics simulation that allows users to manipulate ropes using hand tracking and voice commands. The application uses Three.js for 3D rendering, Cannon.js for physics, and MediaPipe for hand tracking with hugging face and whisper to integrate voice commands.
 
@@ -9,7 +9,6 @@ An interactive 3D physics simulation that allows users to manipulate ropes using
 - Voice commands for hands-free control
 - Game mode with timer and scoring
 - Multiple difficulty levels
-- Advanced knot detection and measurement system
 - Tangle complexity metrics
 
 ## Project Structure
@@ -46,7 +45,6 @@ The application supports the following voice commands:
 The application includes an advanced knot measurement system that:
 - Analyzes the complexity of knots tied in the rope
 - Provides a rating from "Not knotted" to "Extreme knot"
-- Awards points based on knot complexity
 - Applies difficulty multipliers to scores
 - Visualizes the measurement process with interactive indicators
 
@@ -75,4 +73,3 @@ The application includes an advanced knot measurement system that:
 - The voice recognition system uses the Hugging Face Whisper API. You may need to replace the API key in `voice.js` with your own.
 - For optimal performance, use a computer with a dedicated GPU.
 - Hand tracking works best in well-lit environments with a clear view of your hands.
-- The knot measurement system works by applying stretching forces to the rope and measuring how much it can extend, which correlates with knot complexity. 

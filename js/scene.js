@@ -45,7 +45,7 @@ scene.background = new THREE.Color(0x282c34);
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 // Position camera higher and angled down to better view the rope
-camera.position.set(0, 25, 20);
+camera.position.set(0, 10, 35);
 camera.lookAt(0, 0, 0); // Look at the origin where the rope is anchored
 
 // Renderer setup
@@ -111,7 +111,7 @@ world.addBody(backWallBody);
 // Create visual walls (semi-transparent)
 const wallGeometry = new THREE.BoxGeometry(1, CONFIG.wallDistance * 2, CONFIG.wallDistance * 2);
 const wallMaterialThree = new THREE.MeshStandardMaterial({ 
-    color: 0x666666,
+    color: 0x113311,
     transparent: true,
     opacity: 0.2
 });
@@ -142,7 +142,7 @@ scene.add(backWall);
 // Ground
 const groundGeometry = new THREE.PlaneGeometry(50, 50);
 const groundMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x333333,
+    color: 0x224422,
     roughness: 0.8,
     metalness: 0.2
 });
@@ -382,7 +382,7 @@ function applyTanglingForces() {
 
 // Function to reset camera to default position
 function resetCamera() {
-    camera.position.set(0, 25, 20);
+    camera.position.set(0, 10, 35);
     camera.lookAt(0, 0, 0);
 }
 
