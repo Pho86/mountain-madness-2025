@@ -10,8 +10,6 @@ let lastCommandTime = 0; // Track when the last command was executed
 const commandCooldown = 3000; // Cooldown period in milliseconds
 
 // Replace with your Hugging Face API key
-const HF_API_KEY = '';
-
 // Function to start continuous voice recognition with overlapping sessions
 async function startContinuousVoiceRecognition() {
     const indicator = document.getElementById('voice-indicator');
@@ -201,26 +199,20 @@ function stopContinuousVoiceRecognition() {
         window.sharedAudioStream.getTracks().forEach(track => track.stop());
         window.sharedAudioStream = null;
     }
-}
-
-// Function to transcribe audio using Hugging Face Whisper API
-async function transcribeAudio(audioBlob) {
+} async function transcribeAudio(audioBlob) {
     try {
-        const audioBase64 = await blobToBase64(audioBlob);
+        // Convert blob to base64
+        const base64Data = await blobToBase64(audioBlob);
 
-        const response = await fetch(
-            'https://api-inference.huggingface.co/models/openai/whisper-large-v3',
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${HF_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    inputs: audioBase64.split(',')[1], // Remove the data URL prefix
-                }),
-            }
-        );
+        const response = await fetch("http://localhost:3000/transcribe", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                audioBase64: base64Data
+            }),
+        });
 
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);
@@ -229,8 +221,6 @@ async function transcribeAudio(audioBlob) {
         const data = await response.json();
         if (data && data.text) {
             return data.text;
-        } else if (data && Array.isArray(data) && data[0] && data[0].generated_text) {
-            return data[0].generated_text;
         } else {
             console.warn("Unexpected API response format:", data);
             return "";
@@ -240,6 +230,7 @@ async function transcribeAudio(audioBlob) {
         throw error;
     }
 }
+
 
 // Function to convert Blob to Base64
 function blobToBase64(blob) {
@@ -541,3 +532,4 @@ function measureKnotVoiceCommand() {
     // Start the measurement process
     startKnotMeasurement();
 } 
+
